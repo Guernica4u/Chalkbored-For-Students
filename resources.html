@@ -64,6 +64,26 @@
     max-width: 62ch;
     margin: 0 0 1.25rem;
   }
+  .resource-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-top: 2.5rem;
+  }
+  .resource-btn {
+    display: inline-block;
+    padding: 0.9rem 1.4rem;
+    border: 1px solid var(--line);
+    color: var(--ink);
+    text-decoration: none;
+    font-size: 1.05rem;
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  }
+  .resource-btn:hover {
+    background: var(--ink);
+    color: #fff;
+    border-color: var(--ink);
+  }
   footer {
     text-align: center;
     padding: 2.5rem 1.5rem 3rem;
@@ -81,7 +101,11 @@
   <main>
     <div class="rule"></div>
     <h1>Resources</h1>
-    <p>Study guides, references, and tools are on their way here — free to use, no login required.</p><p>Check back soon as this section fills in.</p>
+    <p>Free tools and references, no login required. More get added as we find them.</p>
+    <div class="resource-grid">
+      <a class="resource-btn" href="blender-clone.html">Blender Clone (Browser 3D Editor)</a>
+      <a class="resource-btn" href="Bloons%20Math%20Loader.html">Bloons Math</a>
+    </div>
   </main>
   <footer>
     ChalkBored &middot; built for students, kept free
