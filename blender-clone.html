@@ -1,0 +1,3674 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Toasted Web Engine</title>
+<style>
+/* ---------- Basic page ---------- */
+html,body { margin:0; height:100%; background:#111; font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; color:#e6e6e6; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; }
+canvas { display:block; }
+/* ---------- Sidebar (Blender-ish) ---------- */
+#sidebar { position: absolute; top: 0; left: 0; width: 260px; height: 100%; background: linear-gradient(#2b2b2b, #262626); border-right: 1px solid rgba(255,255,255,0.04); box-shadow: 0 6px 18px rgba(0,0,0,0.6); z-index: 30; overflow: hidden; display: flex; flex-direction: column; transition: width 180ms ease, left 180ms ease; }
+#sidebar.collapsed { width: 36px; }
+#sidebar.hidden { display: none; }
+#sidebar-top { height: 36px; display:flex; align-items:center; justify-content:space-between; padding: 0 8px; background: linear-gradient(#333,#2b2b2b); border-bottom: 1px solid rgba(255,255,255,0.03); box-sizing: border-box; flex: 0 0 36px; }
+#sidebar-title { font-size:13px; font-weight:600; letter-spacing:0.2px; color:#f1f1f1; display:flex; align-items:center; gap:8px; }
+#sidebar-title .dot { width:9px;height:9px;border-radius:50%; background: linear-gradient(45deg, #ffb86b, #ff7b7b); box-shadow: 0 0 6px rgba(255,140,80,0.2); }
+#sidebar-handle { position: absolute; top: 8px; left: 260px; width:34px; height:34px; border-radius:8px; display:flex;align-items:center;justify-content:center; background: linear-gradient(#2f2f2f,#272727); border:1px solid rgba(255,255,255,0.04); color:#e8e8e8; font-weight:700; cursor:pointer; z-index: 40; box-shadow: 0 6px 18px rgba(0,0,0,0.45); transition: left 160ms ease, background 120ms; }
+#sidebar-handle:hover { background: linear-gradient(#3a3a3a,#2f2f2f); }
+#sidebar-body { overflow-y: auto; padding-bottom: 12px; flex: 1 1 auto; }
+.sidebar-section { border-top: 1px solid rgba(255,255,255,0.02); }
+.section-header { background: linear-gradient(#2f2f2f,#2a2a2a); padding: 8px 10px; font-size:12px; font-weight:700; color:#ddd; display:flex; justify-content:space-between; align-items:center; cursor:pointer; user-select:none; }
+.section-header .chev { font-size:11px; opacity:0.7; transform:rotate(0deg); transition: transform 150ms ease; }
+.section-header.collapsed .chev { transform: rotate(-90deg); opacity:0.5; }
+.section-content { padding: 10px; font-size:13px; color:#ddd; display:block; }
+.control-row { margin-bottom:8px; display:flex; gap:8px; align-items:center; }
+button.ctrl { width:100%; background:#3b3b3b; color:#fff; border:1px solid rgba(255,255,255,0.03); padding:7px 8px; border-radius:6px; font-size:13px; cursor:pointer; transition: background 110ms; }
+button.ctrl:hover { background:#4a4a4a; }
+.small { width:48%; padding:6px 8px; font-size:12px; }
+.x-small { width:32%; padding:5px 6px; font-size:11px; }
+input[type="color"], input[type="range"], input[type="file"], input[type="number"] { height:34px; border-radius:6px; padding:0; border:1px solid rgba(255,255,255,0.03); }
+input[type="range"] { width:100%; }
+input[type="number"] { width:60px; background:#2b2b2b; color:#fff; padding:0 8px; }
+.instructions { font-size:12px; color:#cfcfcf; line-height:1.35; opacity:0.95; }
+#addMenu { position: absolute; background: #222; border: 1px solid #444; border-radius: 6px; box-shadow: 0 8px 28px rgba(0,0,0,0.6); display: none; color: #fff; font-family: sans-serif; z-index: 60; min-width: 160px; user-select:none; overflow:hidden; }
+#addMenu div { padding: 8px 12px; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.03); background: linear-gradient(#2b2b2b,#262626); }
+#addMenu div:last-child { border-bottom: none; }
+#addMenu div:hover { background: rgba(255,255,255,0.03); }
+#dropzone { position:absolute;top:0;left:0;right:0;bottom:0; background:rgba(255,255,255,0.03); color:white;font-size:20px; display:none;justify-content:center;align-items:center; pointer-events:none; z-index: 20; }
+#sidebar.collapsed .section-header .label { display:none; }
+#sidebar.collapsed .section-content { display:none; }
+#sidebar-footer { padding:8px; font-size:11px; color:#bdbdbd; border-top: 1px solid rgba(255,255,255,0.02); background: linear-gradient(#262626,#242424); flex: 0 0 auto; }
+
+/* ---------- Animation Panel (Bottom) ---------- */
+#animation-panel { position: absolute; bottom: 0; left: 0; right: 0; height: 120px; background: linear-gradient(#2b2b2b, #262626); border-top: 1px solid rgba(255,255,255,0.04); box-shadow: 0 -6px 18px rgba(0,0,0,0.6); z-index: 30; display: flex; flex-direction: column; padding: 8px; box-sizing: border-box; }
+#animation-panel.collapsed { height: 28px; }
+#animation-panel-header { height: 28px; display:flex; align-items:center; justify-content:space-between; padding: 0 8px; background: linear-gradient(#333,#2b2b2b); border-bottom: 1px solid rgba(255,255,255,0.03); font-size:12px; font-weight:700; color:#ddd; cursor:pointer; user-select:none; }
+#animation-panel-header .chev { font-size:11px; opacity:0.7; transition: transform 150ms ease; }
+#animation-panel-header.collapsed .chev { transform: rotate(-90deg); opacity:0.5; }
+#animation-panel-content { padding: 10px; font-size:13px; color:#ddd; display:block; }
+#animation-panel.collapsed #animation-panel-content { display: none; }
+
+/* ---------- Camera Controls ---------- */
+.camera-controls { background: linear-gradient(#1a1a1a, #151515); padding: 10px; border-radius: 6px; margin-top: 8px; border: 1px solid rgba(255,255,255,0.05); }
+.camera-controls .control-row { margin-bottom: 6px; }
+.camera-controls .instructions { font-size: 11px; opacity: 0.8; }
+
+/* ---------- Edit Tools ---------- */
+.edit-tools { background: linear-gradient(#1a1a1a, #151515); padding: 10px; border-radius: 6px; margin-top: 8px; border: 1px solid rgba(255,255,255,0.05); }
+.edit-tools .control-row { margin-bottom: 6px; }
+.edit-tools .instructions { font-size: 11px; opacity: 0.8; }
+
+/* ---------- Graphics Controls ---------- */
+.graphics-controls { background: linear-gradient(#1a1a1a, #151515); padding: 10px; border-radius: 6px; margin-top: 8px; border: 1px solid rgba(255,255,255,0.05); }
+.graphics-controls .control-row { margin-bottom: 6px; }
+.graphics-controls .instructions { font-size: 11px; opacity: 0.8; }
+
+/* ---------- Bloom Controls ---------- */
+.bloom-controls { background: linear-gradient(#1a1a1a, #151515); padding: 10px; border-radius: 6px; margin-top: 8px; border: 1px solid rgba(255,255,255,0.05); }
+.bloom-controls .control-row { margin-bottom: 6px; }
+.bloom-controls .instructions { font-size: 11px; opacity: 0.8; }
+
+/* ---------- Confirmation Modal ---------- */
+#confirmModal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 1000; justify-content: center; align-items: center; }
+#confirmModal .modal-content { background: linear-gradient(#2b2b2b, #262626); border-radius: 8px; padding: 20px; width: 300px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+#confirmModal .modal-title { font-size: 14px; font-weight: bold; margin-bottom: 10px; color: #fff; }
+#confirmModal .modal-message { font-size: 13px; margin-bottom: 20px; color: #ccc; }
+#confirmModal .modal-buttons { display: flex; gap: 10px; justify-content: flex-end; }
+#confirmModal .modal-btn { padding: 8px 16px; border-radius: 4px; border: none; cursor: pointer; font-size: 13px; }
+#confirmModal .modal-btn.confirm { background: #ff4444; color: white; }
+#confirmModal .modal-btn.cancel { background: #3b3b3b; color: #ddd; }
+
+/* ---------- Camera Mode Indicator ---------- */
+#cameraModeIndicator {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255, 100, 100, 0.9);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: bold;
+  z-index: 100;
+  display: none;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+  border: 1px solid rgba(255,255,255,0.2);
+  backdrop-filter: blur(4px);
+}
+
+/* ---------- Enhanced Camera Viewport ---------- */
+#cameraViewport {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 320px;
+  height: 180px;
+  background: rgba(0, 0, 0, 0.9);
+  border: 2px solid rgba(255, 100, 100, 0.6);
+  border-radius: 8px;
+  z-index: 20;
+  display: none;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+}
+
+#cameraViewport.active {
+  display: block;
+}
+
+#cameraViewport canvas {
+  width: 100%;
+  height: 100%;
+}
+
+#cameraViewport .camera-info {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.85);
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #ffcccc;
+  font-weight: bold;
+  border-top: 1px solid rgba(255,100,100,0.3);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+#cameraViewport .close-viewport {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(255, 100, 100, 0.8);
+  border: none;
+  color: white;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+  z-index: 2;
+}
+
+#cameraViewport .close-viewport:hover {
+  background: rgba(255, 100, 100, 1);
+}
+
+#cameraViewport .camera-controls {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  display: flex;
+  gap: 6px;
+  z-index: 2;
+}
+
+#cameraViewport .viewport-btn {
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(255,255,255,0.2);
+  color: white;
+  width: 26px;
+  height: 26px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+#cameraViewport .viewport-btn:hover {
+  background: rgba(255,255,255,0.2);
+}
+
+#cameraViewport .viewport-btn.active {
+  background: rgba(255, 100, 100, 0.8);
+  border-color: rgba(255, 100, 100, 1);
+}
+
+/* ---------- Render Overlay ---------- */
+#renderOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.98);
+  z-index: 10000;
+  display: none;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+}
+
+#renderCanvas {
+  background: #111;
+  border: 1px solid #444;
+  border-radius: 4px;
+  max-width: 90%;
+  max-height: 90%;
+}
+
+#renderControls {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(40, 40, 40, 0.95);
+  padding: 10px 15px;
+  border-radius: 6px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid rgba(255,255,255,0.15);
+  backdrop-filter: blur(4px);
+}
+
+.render-stat {
+  font-size: 12px;
+  color: #ddd;
+  margin: 0 10px;
+  font-family: monospace;
+}
+
+.render-progress {
+  width: 200px;
+  height: 4px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 2px;
+  overflow: hidden;
+  margin: 0 10px;
+}
+
+.render-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #4CAF50, #8BC34A);
+  width: 0%;
+  transition: width 0.3s ease;
+}
+
+.render-preview {
+  position: absolute;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #aaa;
+  font-size: 12px;
+  font-style: italic;
+}
+
+@media (max-width:700px) { 
+  #sidebar { width:220px; } 
+  #sidebar.collapsed { width:36px; } 
+  #cameraViewport { width: 240px; height: 135px; }
+  #renderControls {
+    flex-wrap: wrap;
+    justify-content: center;
+    top: 10px;
+    width: 90%;
+  }
+  .render-stat {
+    margin: 0 5px;
+  }
+}
+</style>
+</head>
+<body>
+<!-- Sidebar -->
+<div id="sidebar" aria-hidden="false">
+  <div id="sidebar-top">
+    <div id="sidebar-title"><span class="dot"></span><span style="font-size:12px">Toasted (made with love)</span></div>
+  </div>
+
+  <div id="sidebar-body">
+    <!-- Camera Section -->
+    <div class="sidebar-section">
+      <div class="section-header" data-section="camera"><span class="label">Camera</span><span class="chev">▾</span></div>
+      <div class="section-content" data-content="camera">
+        <div class="camera-controls">
+          <div class="control-row">
+            <button id="addCameraBtn" class="ctrl small">Add Camera</button>
+            <button id="toggleCameraViewBtn" class="ctrl small">Viewport: Off</button>
+          </div>
+          <div class="control-row">
+            <button id="cameraModeBtn" class="ctrl" style="background: #443333;">Camera Mode: OFF</button>
+          </div>
+          <div class="control-row">
+            <label style="font-size:12px;width:100%">Active Camera:</label>
+          </div>
+          <div class="control-row">
+            <select id="cameraSelect">
+              <option value="0">Main Camera</option>
+            </select>
+          </div>
+          <div class="control-row">
+            <button id="setActiveCameraBtn" class="ctrl small">Set Active</button>
+            <button id="deleteCameraBtn" class="ctrl small">Delete Camera</button>
+          </div>
+          <div class="control-row">
+            <button id="alignViewToCameraBtn" class="ctrl small">Align View</button>
+            <button id="alignCameraToViewBtn" class="ctrl small">Camera to View</button>
+          </div>
+          <div class="control-row">
+            <label style="font-size:12px;width:100%">FOV: <span id="fovValue">50</span>°</label>
+          </div>
+          <div class="control-row">
+            <input type="range" id="fovSlider" min="10" max="120" step="1" value="50">
+          </div>
+          <div class="control-row">
+            <label style="font-size:12px;width:100%">Clipping:</label>
+          </div>
+          <div class="control-row">
+            <label style="font-size:11px">Near:</label>
+            <input type="number" id="cameraNear" min="0.1" max="10" step="0.1" value="0.1" style="width:50px">
+            <label style="font-size:11px">Far:</label>
+            <input type="number" id="cameraFar" min="100" max="5000" step="100" value="1000" style="width:60px">
+          </div>
+          <div class="instructions">
+            <b>Camera Mode</b>: View scene from selected camera perspective.<br>
+            <b>Add Camera</b>: Creates a new camera object in the scene.<br>
+            <b>Viewport</b>: Shows camera preview in corner.<br>
+            <b>Align View</b>: Moves view to match selected camera.<br>
+            <b>Camera to View</b>: Moves selected camera to current view.<br>
+            <b>Numpad 0</b>: Toggle camera mode for selected camera.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Tools Section -->
+    <div class="sidebar-section">
+      <div class="section-header" data-section="edit"><span class="label">Edit Tools</span><span class="chev">▾</span></div>
+      <div class="section-content" data-content="edit">
+        <div class="edit-tools">
+          <div class="control-row">
+            <button id="copyBtn" class="ctrl x-small">Copy</button>
+            <button id="pasteBtn" class="ctrl x-small">Paste</button>
+            <button id="duplicateBtn" class="ctrl x-small">Duplicate</button>
+          </div>
+          <div class="control-row">
+            <button id="deleteBtn" class="ctrl small" style="background: #442222;">Delete</button>
+            <button id="renameBtn" class="ctrl small">Rename</button>
+          </div>
+          <div class="control-row">
+            <button id="selectAllBtn" class="ctrl small">Select All</button>
+            <button id="deselectBtn" class="ctrl small">Deselect</button>
+          </div>
+          <div class="control-row">
+            <button id="groupBtn" class="ctrl x-small">Group</button>
+            <button id="ungroupBtn" class="ctrl x-small">Ungroup</button>
+            <button id="hideBtn" class="ctrl x-small">Hide</button>
+          </div>
+          <div class="instructions">
+            <b>Ctrl+C / Ctrl+V</b>: Copy/Paste<br>
+            <b>Ctrl+D</b>: Duplicate<br>
+            <b>Delete / Backspace</b>: Delete selected<br>
+            <b>Ctrl+A</b>: Select All<br>
+            <b>Esc</b>: Deselect<br>
+            <b>Numpad 0</b>: Toggle camera mode<br>
+            <b>Ctrl+Numpad 0</b>: Switch to camera view
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Render Settings Section -->
+    <div class="sidebar-section">
+      <div class="section-header" data-section="render"><span class="label">Render Settings</span><span class="chev">▾</span></div>
+      <div class="section-content" data-content="render">
+        <div class="graphics-controls">
+          <div class="control-row">
+            <button id="renderBtn" class="ctrl" style="background: #334433;">Render Image</button>
+            <button id="quickRenderBtn" class="ctrl small">Quick Preview</button>
+          </div>
+          <div class="control-row">
+            <label style="font-size:12px;width:100%">Resolution: <span id="resolutionValue">1920</span>px</label>
+          </div>
+          <div class="control-row">
+            <input type="range" id="resolutionSlider" min="480" max="4096" step="160" value="1920">
+          </div>
+          <div class="control-row">
+            <label style="font-size:12px;width:100%">AA Samples: <span id="aaValue">4</span>x</label>
+          </div>
+          <div class="control-row">
+            <input type="range" id="aaSlider" min="1" max="8" step="1" value="4">
+          </div>
+          <div class="control-row">
+            <label style="font-size:12px;width:100%">Output Format:</label>
+          </div>
+          <div class="control-row">
+            <select id="formatSelect">
+              <option value="png">PNG (Lossless)</option>
+              <option value="jpeg">JPEG (Compressed)</option>
+            </select>
+          </div>
+          <div class="instructions">
+            <b>Render Image</b>: High-quality screenshot with current settings.<br>
+            <b>Quick Preview</b>: Low-res preview for composition checks.<br>
+            <b>AA Samples</b>: Anti-aliasing quality (higher = smoother edges).<br>
+            <b>Renders in real-time</b> using Eevee-style rasterization engine.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Graphics Settings Section -->
+    <div class="sidebar-section">
+      <div class="section-header" data-section="graphics"><span class="label">Graphics & Performance</span><span class="chev">▾</span></div>
+      <div class="section-content" data-content="graphics">
+        <div class="graphics-controls">
+          <div class="control-row">
+            <button id="toggleSSAOBtn" class="ctrl small">SSAO: On</button>
+            <button id="toggleFXAABtn" class="ctrl small">FXAA: On</button>
+          </div>
+          
+          <!-- Shadow Quality -->
+          <div class="control-row">
+            <label style="font-size:12px;width:100%">Shadow Quality: <span id="shadowQualityValue">High</span></label>
+          </div>
+          <div class="control-row">
+            <input type="range" id="shadowQualitySlider" min="1" max="5" step="1" value="4">
+          </div>
+          
+          <!-- NEW: Shadow Bias Controls -->
+          <div class="control-row">
+            <label style="font-size:12px;width:100%">Shadow Bias: <span id="shadowBiasValue">-0.0001</span></label>
+          </div>
+          <div class="control-row">
+            <input type="range" id="shadowBiasSlider" min="-0.001" max="0.001" step="0.0001" value="-0.0001">
+          </div>
+          
+          <!-- NEW: Normal Bias Controls -->
+          <div class="control-row">
+            <label style="font-size:12px;width:100%">Normal Bias: <span id="normalBiasValue">0.02</span></label>
+          </div>
+          <div class="control-row">
+            <input type="range" id="normalBiasSlider" min="0" max="0.1" step="0.001" value="0.02">
+          </div>
+          
+          <div class="control-row">
+            <label style="font-size:12px;width:100%">SSAO Radius: <span id="ssaoRadiusValue">1.0</span></label>
+          </div>
+          <div class="control-row">
+            <input type="range" id="ssaoRadiusSlider" min="0.1" max="3" step="0.1" value="1.0">
+          </div>
+          <div class="control-row">
+            <label style="font-size:12px;width:100%">SSAO Intensity: <span id="ssaoIntensityValue">1.0</span></label>
+          </div>
+          <div class="control-row">
+            <input type="range" id="ssaoIntensitySlider" min="0" max="2" step="0.1" value="1.0">
+          </div>
+          <div class="control-row">
+            <button id="toggleToneMappingBtn" class="ctrl small">Tone Mapping: On</button>
+            <button id="optimizePerformanceBtn" class="ctrl small">Optimize Perf</button>
+          </div>
+          <div class="instructions">
+            <b>SSAO</b>: Ambient occlusion for better depth (performance impact: low).<br>
+            <b>FXAA</b>: Fast anti-aliasing (performance impact: very low).<br>
+            <b>Shadow Quality</b>: Higher = smoother shadows, lower = better performance.<br>
+            <b>Shadow Bias</b>: Fixes gaps between objects and shadows (negative values).<br>
+            <b>Normal Bias</b>: Reduces shadow acne on angled surfaces.<br>
+            <b>Optimize</b>: Reduces geometry complexity for better performance.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="section-header" data-section="transform"><span class="label">Transform</span><span class="chev">▾</span></div>
+      <div class="section-content" data-content="transform">
+        <div class="control-row">
+          <button id="resetBtn" class="ctrl">Reset Transform</button>
+        </div>
+        <div class="control-row">
+          <button id="toggleWireframeBtn" class="ctrl small">Toggle Wireframe</button>
+          <button id="toggleGridBtn" class="ctrl small">Toggle Grid</button>
+        </div>
+        <div style="height:6px"></div>
+        <div class="instructions">
+          <b>G</b> = Move &nbsp; <b>R</b> = Rotate &nbsp; <b>S</b> = Scale<br>
+          Hold <b>Shift</b> to disable snapping while transforming.<br>
+          <b>Shift + A</b> to open Add Menu.
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="section-header" data-section="lighting"><span class="label">Lighting</span><span class="chev">▾</span></div>
+      <div class="section-content" data-content="lighting">
+        <div class="control-row">
+          <label style="font-size:12px;width:100%">Main Point Light Color</label>
+        </div>
+        <div class="control-row">
+          <input type="color" id="lightColor" value="#ffccaa">
+        </div>
+        <div class="control-row">
+          <button id="toggleSpotlightsBtn" class="ctrl small">Toggle Spotlights</button>
+          <button id="toggleAreaLightsBtn" class="ctrl small">Toggle Area Lights</button>
+        </div>
+        
+        <!-- Bloom Controls -->
+        <div class="bloom-controls">
+          <div class="control-row">
+            <button id="toggleBloomBtn" class="ctrl small">Bloom: On</button>
+            <button id="reloadBloomBtn" class="ctrl small">Reload Bloom</button>
+          </div>
+          <div class="control-row">
+            <label style="font-size:12px;width:100%">Bloom Size: <span id="bloomSizeValue">2.0</span></label>
+          </div>
+          <div class="control-row">
+            <input type="range" id="bloomSizeSlider" min="0.1" max="5" step="0.1" value="2.0">
+          </div>
+          <div class="control-row">
+            <label style="font-size:12px;width:100%">Bloom Intensity: <span id="bloomIntensityValue">1.0</span></label>
+          </div>
+          <div class="control-row">
+            <input type="range" id="bloomIntensitySlider" min="0" max="3" step="0.1" value="1.0">
+          </div>
+          <div class="instructions">
+            Fake bloom effect using textured sprites at light sources.<br>
+            More visible when looking toward lights. Reload if lights disappear.
+          </div>
+        </div>
+        
+        <div style="height:6px"></div>
+        <div class="instructions">Select a light sphere to transform it (G/R/S). Lights can now be moved like meshes.</div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="section-header" data-section="materials"><span class="label">Materials</span><span class="chev">▾</span></div>
+      <div class="section-content" data-content="materials">
+        <div class="control-row">
+          <label style="font-size:12px;width:100%">Base Color</label>
+        </div>
+        <div class="control-row">
+          <input type="color" id="materialColor" value="#999999">
+        </div>
+        <div class="control-row">
+          <label style="font-size:12px;width:100%">Roughness: <span id="roughnessValue">0.6</span></label>
+        </div>
+        <div class="control-row">
+          <input type="range" id="roughnessSlider" min="0" max="1" step="0.01" value="0.6">
+        </div>
+        <div class="control-row">
+          <label style="font-size:12px;width:100%">Metalness: <span id="metalnessValue">0.2</span></label>
+        </div>
+        <div class="control-row">
+          <input type="range" id="metalnessSlider" min="0" max="1" step="0.01" value="0.2">
+        </div>
+        <div class="control-row">
+          <input type="file" id="textureInput" accept="image/*">
+        </div>
+        <div class="control-row">
+          <button id="resetMaterialBtn" class="ctrl">Reset Material</button>
+        </div>
+        <div style="height:6px"></div>
+        <div class="instructions">
+          Select a mesh to modify its material.<br>
+          Upload an image for texture or adjust color, roughness, and metalness.<br>
+          Drop an image file anywhere to apply as texture.
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="section-header" data-section="scene"><span class="label">Scene / Bones</span><span class="chev">▾</span></div>
+      <div class="section-content" data-content="scene">
+        <div class="control-row">
+          <button id="toggleSkeletonBtn" class="ctrl">Toggle Skeleton Helpers</button>
+        </div>
+        <div class="control-row">
+          <button id="toggleBoneBallsBtn" class="ctrl small">Toggle Bone Handles</button>
+            <button id="toggleEmptyAxesBtn" class="ctrl small">Toggle Empty Axes</button>
+        </div>
+        <div class="control-row">
+          <label style="font-size:12px;width:100%">Object Count: <span id="objectCount">0</span></label>
+        </div>
+        <div style="height:6px"></div>
+        <div class="instructions">
+          Drop a <b>.glb</b> or <b>image</b> anywhere to add to the scene or apply as texture.<br>
+          Skeletons (bones) will show helper lines + small handles for selection.<br>
+          "Empties" are shown as small axes helpers and can be selected/moved.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="sidebar-footer">Blender-style UI • Camera Mode • Edit Tools • Animation • Materials • Eevee Renderer</div>
+</div>
+
+<!-- Camera Mode Indicator -->
+<div id="cameraModeIndicator">CAMERA MODE</div>
+
+<!-- Camera Viewport Overlay -->
+<div id="cameraViewport">
+  <div class="camera-controls">
+    <button class="viewport-btn" id="viewportToggleCamera" title="Switch to this camera">📷</button>
+    <button class="viewport-btn" id="viewportExitCamera" title="Exit camera mode">👁️</button>
+  </div>
+  <button class="close-viewport" title="Close viewport">×</button>
+  <canvas id="cameraCanvas"></canvas>
+  <div class="camera-info">
+    <span id="cameraInfo">Camera: Main Camera</span>
+    <span id="cameraViewportInfo">Viewport</span>
+  </div>
+</div>
+
+<!-- Render Overlay -->
+<div id="renderOverlay">
+  <div id="renderControls">
+    <button id="stopRenderBtn" class="ctrl small" style="background: #ff4444;">Cancel</button>
+    <button id="saveRenderBtn" class="ctrl small">Save Image</button>
+    <div class="render-progress">
+      <div class="render-progress-bar" id="renderProgressBar"></div>
+    </div>
+    <span class="render-stat">Rendering...</span>
+  </div>
+  <canvas id="renderCanvas"></canvas>
+  <div id="renderPreview" class="render-preview">Rendering camera view: Main Camera</div>
+</div>
+
+<!-- Animation Panel (Bottom) -->
+<div id="animation-panel" aria-hidden="false">
+  <div id="animation-panel-header" class="section-header" data-section="animation"><span class="label">Animation</span><span class="chev">▾</span></div>
+  <div id="animation-panel-content" class="section-content" data-content="animation">
+    <div class="control-row">
+      <label style="font-size:12px;width:100%">Current Frame: <span id="currentFrameValue">0</span></label>
+      <input type="range" id="frameSlider" min="0" max="100" step="1" value="0" style="width:60%">
+    </div>
+    <div class="control-row">
+      <button id="setKeyframeBtn" class="ctrl small">Set Keyframe</button>
+      <button id="deleteKeyframeBtn" class="ctrl small">Delete Keyframe</button>
+      <button id="playPauseBtn" class="ctrl small">Play</button>
+      <button id="toggleLoopBtn" class="ctrl small">Loop: Off</button>
+    </div>
+    <div class="control-row">
+      <label style="font-size:12px">Frame:</label>
+      <input type="number" id="frameInput" min="0" max="100" value="0">
+      <button id="goToFrameBtn" class="ctrl small">Go</button>
+    </div>
+    <div class="instructions">
+      Select an object to animate.<br>
+      Use <b>Set Keyframe</b> to save position/rotation/scale at the current frame.<br>
+      <b>Play</b> to animate, <b>Loop</b> to repeat animation.<br>
+      Adjust frame with slider or input.
+    </div>
+  </div>
+</div>
+
+<!-- Confirmation Modal -->
+<div id="confirmModal">
+  <div class="modal-content">
+    <div class="modal-title">Confirm Delete</div>
+    <div class="modal-message" id="modalMessage">Are you sure you want to delete the selected object?</div>
+    <div class="modal-buttons">
+      <button class="modal-btn cancel" id="modalCancel">Cancel</button>
+      <button class="modal-btn confirm" id="modalConfirm">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- Floating handle outside sidebar -->
+<button id="sidebar-handle" title="Toggle sidebar">◀</button>
+
+<!-- Add Menu -->
+<div id="addMenu" role="menu" aria-hidden="true">
+  <div data-type="cube">Add Cube</div>
+  <div data-type="cone">Add Cone</div>
+  <div data-type="sphere">Add Sphere</div>
+  <div data-type="pointlight">Add Point Light</div>
+  <div data-type="spotlight">Add Spot Light</div>
+  <div data-type="arealight">Add Area Light</div>
+  <div data-type="camera">Add Camera</div>
+</div>
+
+<!-- Dropzone -->
+<div id="dropzone">Drop your .glb or image file here</div>
+
+<!-- Three.js libs -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.120.1/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.120.1/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.120.1/examples/js/controls/TransformControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.120.1/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.120.1/examples/js/lights/RectAreaLightUniformsLib.js"></script>
+
+<script>
+/* =========================
+   EEVEE-STYLE REAL-TIME RENDERER SYSTEM
+   ========================= */
+var renderActive = false;
+var renderCanvas = null;
+var renderContext = null;
+var renderResolution = 1920;
+var aaSamples = 4;
+var renderStartTime = 0;
+var renderProgress = 0;
+var renderTimer = null;
+
+// Enhanced renderer with better quality settings
+function createEnhancedRenderer(width, height, aaSamples = 1) {
+  // Create a canvas for rendering
+  var canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  var context = canvas.getContext('2d');
+  
+  return { canvas, context };
+}
+
+// Multi-sampling anti-aliasing (MSAA simulation)
+function applyMSAA(sourceCanvas, targetContext, samples) {
+  if (samples <= 1) {
+    // No AA, just copy
+    targetContext.drawImage(sourceCanvas, 0, 0);
+    return;
+  }
+  
+  var width = sourceCanvas.width;
+  var height = sourceCanvas.height;
+  
+  // Simple FXAA-style approach
+  targetContext.imageSmoothingEnabled = true;
+  targetContext.imageSmoothingQuality = 'high';
+  
+  // Draw at half size and scale up for basic smoothing
+  if (samples >= 2) {
+    targetContext.save();
+    targetContext.scale(0.5, 0.5);
+    targetContext.drawImage(sourceCanvas, 0, 0, width * 2, height * 2);
+    targetContext.restore();
+  }
+  
+  // Add extra passes for higher quality
+  for (var i = 1; i < samples; i++) {
+    targetContext.globalAlpha = 0.5 / i;
+    targetContext.drawImage(sourceCanvas, 
+      Math.random() * 2 - 1, 
+      Math.random() * 2 - 1, 
+      width, height);
+  }
+  targetContext.globalAlpha = 1.0;
+}
+
+// Post-processing effects
+function applyPostProcessing(context, width, height, settings) {
+  if (!settings) return;
+  
+  var imageData = context.getImageData(0, 0, width, height);
+  var data = imageData.data;
+  
+  // Simple tone mapping (Reinhard)
+  if (settings.toneMapping) {
+    for (var i = 0; i < data.length; i += 4) {
+      // Reinhard tone mapping
+      var r = data[i] / 255;
+      var g = data[i + 1] / 255;
+      var b = data[i + 2] / 255;
+      
+      r = r / (1 + r);
+      g = g / (1 + g);
+      b = b / (1 + b);
+      
+      data[i] = Math.min(255, r * 255);
+      data[i + 1] = Math.min(255, g * 255);
+      data[i + 2] = Math.min(255, b * 255);
+    }
+  }
+  
+  // Simple bloom (glow) effect
+  if (settings.bloom) {
+    // Create a temporary canvas for bloom
+    var tempCanvas = document.createElement('canvas');
+    tempCanvas.width = width;
+    tempCanvas.height = height;
+    var tempContext = tempCanvas.getContext('2d');
+    tempContext.putImageData(imageData, 0, 0);
+    
+    // Apply blur for bloom
+    context.filter = 'blur(8px) brightness(1.5)';
+    context.drawImage(tempCanvas, 0, 0, width, height);
+    context.filter = 'none';
+    
+    // Blend original with bloom
+    context.globalCompositeOperation = 'screen';
+    context.globalAlpha = 0.3;
+    context.drawImage(tempCanvas, 0, 0, width, height);
+    context.globalCompositeOperation = 'source-over';
+    context.globalAlpha = 1.0;
+  }
+  
+  // Simple sharpening
+  if (settings.sharpness > 0) {
+    context.filter = `contrast(${100 + settings.sharpness}%)`;
+    context.drawImage(context.canvas, 0, 0);
+    context.filter = 'none';
+  }
+}
+
+// Main render function
+function renderSceneToCanvas() {
+  if (!renderActive) return;
+  
+  var renderer = createEnhancedRenderer(renderResolution, 
+    Math.floor(renderResolution / camera.aspect));
+  
+  // Create a temporary scene and camera for rendering
+  var tempScene = scene.clone();
+  var tempCamera = camera.clone();
+  tempCamera.aspect = renderer.canvas.width / renderer.canvas.height;
+  tempCamera.updateProjectionMatrix();
+  
+  // Create a WebGL renderer for the high-quality render
+  var webglRenderer = new THREE.WebGLRenderer({ 
+    canvas: renderer.canvas,
+    antialias: true,
+    preserveDrawingBuffer: true,
+    alpha: true
+  });
+  
+  webglRenderer.setSize(renderer.canvas.width, renderer.canvas.height);
+  webglRenderer.setPixelRatio(1); // Fixed pixel ratio for consistent quality
+  
+  // Apply current graphics settings
+  webglRenderer.shadowMap.enabled = true;
+  webglRenderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  webglRenderer.toneMapping = graphicsSettings.toneMappingEnabled ? 
+    THREE.ACESFilmicToneMapping : THREE.NoToneMapping;
+  webglRenderer.toneMappingExposure = 1.0;
+  
+  // Render the scene
+  webglRenderer.render(tempScene, tempCamera);
+  
+  // Apply post-processing
+  var postSettings = {
+    toneMapping: graphicsSettings.toneMappingEnabled,
+    bloom: bloomEnabled && bloomIntensity > 0,
+    sharpness: 10
+  };
+  
+  // Apply multi-sampling AA
+  var finalCanvas = document.getElementById('renderCanvas');
+  var finalContext = finalCanvas.getContext('2d');
+  
+  finalCanvas.width = renderer.canvas.width;
+  finalCanvas.height = renderer.canvas.height;
+  
+  applyMSAA(renderer.canvas, finalContext, aaSamples);
+  applyPostProcessing(finalContext, finalCanvas.width, finalCanvas.height, postSettings);
+  
+  // Clean up
+  webglRenderer.dispose();
+  tempScene.traverse(function(obj) {
+    if (obj.geometry) obj.geometry.dispose();
+    if (obj.material) {
+      if (Array.isArray(obj.material)) {
+        obj.material.forEach(mat => mat.dispose());
+      } else {
+        obj.material.dispose();
+      }
+    }
+  });
+  
+  // Update UI
+  var elapsed = (Date.now() - renderStartTime) / 1000;
+  document.getElementById('renderTime').textContent = elapsed.toFixed(2);
+  document.getElementById('renderProgressBar').style.width = '100%';
+  
+  // Show completion
+  setTimeout(function() {
+    document.getElementById('renderPreview').textContent = 'Render complete! Click Save Image to download.';
+  }, 500);
+}
+
+// Start rendering
+function startRender() {
+  if (renderActive) return;
+  
+  renderActive = true;
+  renderStartTime = Date.now();
+  renderProgress = 0;
+  
+  // Setup render overlay
+  document.getElementById('renderOverlay').style.display = 'flex';
+  document.getElementById('renderBtn').textContent = 'Rendering...';
+  document.getElementById('renderBtn').style.background = '#554433';
+  
+  // Get camera info
+  var cameraName = cameras[activeCameraIndex]?.name || 'Main Camera';
+  document.getElementById('renderPreview').textContent = `Rendering camera view: ${cameraName}`;
+  
+  // Simulate progress for better UX
+  renderTimer = setInterval(function() {
+    renderProgress += 0.1;
+    document.getElementById('renderProgressBar').style.width = 
+      Math.min(renderProgress * 100, 99) + '%';
+  }, 100);
+  
+  // Start actual rendering (with small delay for progress visualization)
+  setTimeout(function() {
+    renderSceneToCanvas();
+    clearInterval(renderTimer);
+    renderProgress = 1;
+  }, 500);
+}
+
+// Quick preview render
+function quickPreview() {
+  // Store original settings
+  var originalResolution = renderResolution;
+  var originalAASamples = aaSamples;
+  
+  // Use lower quality for preview
+  renderResolution = 960;
+  aaSamples = 2;
+  
+  startRender();
+  
+  // Restore settings after a delay
+  setTimeout(function() {
+    renderResolution = originalResolution;
+    aaSamples = originalAASamples;
+  }, 100);
+}
+
+// Stop rendering
+function stopRender() {
+  renderActive = false;
+  if (renderTimer) {
+    clearInterval(renderTimer);
+  }
+  document.getElementById('renderOverlay').style.display = 'none';
+  document.getElementById('renderBtn').textContent = 'Render Image';
+  document.getElementById('renderBtn').style.background = '#334433';
+}
+
+// Save render
+function saveRender() {
+  if (!renderCanvas) {
+    var canvas = document.getElementById('renderCanvas');
+    if (!canvas || canvas.width === 0) return;
+    
+    renderCanvas = canvas;
+    renderContext = canvas.getContext('2d');
+  }
+  
+  var link = document.createElement('a');
+  var timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  var format = document.getElementById('formatSelect').value;
+  var filename = 'render_' + timestamp + '.' + format;
+  
+  link.download = filename;
+  
+  if (format === 'jpeg') {
+    link.href = renderCanvas.toDataURL('image/jpeg', 0.95);
+  } else {
+    link.href = renderCanvas.toDataURL('image/png');
+  }
+  
+  link.click();
+  showNotification('Image saved: ' + filename);
+}
+
+// UI Controls for rendering
+document.getElementById('renderBtn').addEventListener('click', function() {
+  if (renderActive) {
+    stopRender();
+  } else {
+    startRender();
+  }
+});
+
+document.getElementById('quickRenderBtn').addEventListener('click', quickPreview);
+document.getElementById('stopRenderBtn').addEventListener('click', stopRender);
+document.getElementById('saveRenderBtn').addEventListener('click', saveRender);
+
+// Render settings controls
+document.getElementById('resolutionSlider').addEventListener('input', function(e) {
+  renderResolution = parseInt(e.target.value);
+  document.getElementById('resolutionValue').textContent = renderResolution;
+});
+
+document.getElementById('aaSlider').addEventListener('input', function(e) {
+  aaSamples = parseInt(e.target.value);
+  document.getElementById('aaValue').textContent = aaSamples + 'x';
+});
+
+// Close overlay on escape
+window.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape' && renderActive) {
+    stopRender();
+  }
+  
+  // Quick render shortcut: Ctrl+R or Cmd+R
+  if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
+    e.preventDefault();
+    if (!renderActive) {
+      startRender();
+    }
+  }
+  
+  // Quick preview shortcut: Shift+R
+  if (e.shiftKey && e.key === 'r') {
+    e.preventDefault();
+    if (!renderActive) {
+      quickPreview();
+    }
+  }
+});
+
+/* =========================
+   UI wiring (floating handle / collapse / hide)
+   ========================= */
+var sidebar = document.getElementById('sidebar');
+var handle = document.getElementById('sidebar-handle');
+var sections = Array.from(document.querySelectorAll('.section-header'));
+function getSidebarWidth(){ if(sidebar.classList.contains('hidden')) return 0; return sidebar.classList.contains('collapsed') ? 36 : sidebar.getBoundingClientRect().width || 260; }
+function updateHandlePosition(){ var sw = getSidebarWidth(); var left; if(sidebar.classList.contains('hidden')){ left = 8; } else { left = Math.max(8, sw - 12); } handle.style.left = left + 'px'; }
+function setSidebarCollapsed(collapsed){ if(collapsed) { sidebar.classList.add('collapsed'); } else { sidebar.classList.remove('collapsed'); } updateHandleSymbol(); updateRendererSize(); updateHandlePosition(); }
+function toggleSidebarHidden(){ if(sidebar.classList.contains('hidden')){ sidebar.classList.remove('hidden'); sidebar.classList.remove('collapsed'); } else { sidebar.classList.add('hidden'); } updateHandleSymbol(); updateRendererSize(); updateHandlePosition(); }
+function updateHandleSymbol(){ if(sidebar.classList.contains('hidden')){ handle.innerText = '▶'; } else if(sidebar.classList.contains('collapsed')){ handle.innerText = '▶'; } else { handle.innerText = '◀'; } }
+handle.addEventListener('click', function(e){ if(sidebar.classList.contains('hidden')){ sidebar.classList.remove('hidden'); sidebar.classList.remove('collapsed'); } else { sidebar.classList.toggle('collapsed'); } updateHandleSymbol(); updateRendererSize(); updateHandlePosition(); });
+window.addEventListener('keydown', function(e){ if(e.key.toLowerCase() === 'k'){ toggleSidebarHidden(); } });
+sections.forEach(function(h){ h.addEventListener('click', function(){ var sec = h.getAttribute('data-section'); var content = document.querySelector('[data-content="'+sec+'"]'); if(!content) return; var isHidden = content.style.display === 'none' || content.style.display === ''; if(isHidden){ content.style.display = 'block'; h.classList.remove('collapsed'); } else { content.style.display = 'none'; h.classList.add('collapsed'); } }); });
+document.querySelectorAll('.section-content').forEach(function(c){ c.style.display = 'block'; });
+window.addEventListener('resize', function(){ updateRendererSize(); updateHandlePosition(); });
+updateHandleSymbol(); updateHandlePosition();
+
+/* Animation Panel Collapse */
+var animationPanel = document.getElementById('animation-panel');
+var animationHeader = document.getElementById('animation-panel-header');
+animationHeader.addEventListener('click', function() {
+  var isCollapsed = animationPanel.classList.contains('collapsed');
+  if (isCollapsed) {
+    animationPanel.classList.remove('collapsed');
+    document.getElementById('animation-panel-content').style.display = 'block';
+    animationHeader.classList.remove('collapsed');
+  } else {
+    animationPanel.classList.add('collapsed');
+    document.getElementById('animation-panel-content').style.display = 'none';
+    animationHeader.classList.add('collapsed');
+  }
+  updateRendererSize();
+});
+
+/* =========================
+   INIT RectAreaLight support
+   ========================= */
+THREE.RectAreaLightUniformsLib.init();
+
+/* =========================
+   Camera System - COMPLETE WITH CAMERA MODE
+   ========================= */
+var cameras = []; // Array of camera objects
+var activeCameraIndex = 0; // Index of currently active camera
+var cameraModeActive = false; // True when viewing from camera perspective
+var cameraViewportEnabled = false;
+var cameraRenderer = null;
+var cameraScene = null;
+var cameraHelpers = []; // Camera helper objects
+
+// Main camera (original)
+var mainCamera = new THREE.PerspectiveCamera(50, 1, 0.1, 1000);
+mainCamera.position.set(3,3,6);
+mainCamera.name = "Main Camera";
+mainCamera.userData.isMainCamera = true;
+mainCamera.userData.isCameraObject = false; // Not a scene object
+
+// Add main camera to cameras array
+cameras.push({
+  camera: mainCamera,
+  name: "Main Camera",
+  object: null, // No scene object for main camera
+  helper: null
+});
+
+// Create a camera helper mesh (pyramid with line)
+function createCameraHelper(cameraObj) {
+  // Create a simple pyramid for the camera
+  var cameraGeometry = new THREE.ConeGeometry(0.2, 0.5, 4);
+  var cameraMaterial = new THREE.MeshBasicMaterial({ 
+    color: 0xff4444, 
+    transparent: true, 
+    opacity: 0.8,
+    wireframe: false 
+  });
+  
+  var cameraMesh = new THREE.Mesh(cameraGeometry, cameraMaterial);
+  cameraMesh.rotation.x = Math.PI / 2; // Point forward
+  cameraMesh.position.z = 0.25;
+  
+  // Create line showing direction
+  var lineGeometry = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(0, 0, 0),
+    new THREE.Vector3(0, 0, -1)
+  ]);
+  var lineMaterial = new THREE.LineBasicMaterial({ color: 0xff4444, linewidth: 2 });
+  var line = new THREE.Line(lineGeometry, lineMaterial);
+  
+  // Create an invisible box for easier selection
+  var boxGeometry = new THREE.BoxGeometry(0.6, 0.6, 0.6);
+  var boxMaterial = new THREE.MeshBasicMaterial({ 
+    color: 0xff0000, 
+    transparent: true, 
+    opacity: 0.0,
+    visible: false
+  });
+  
+  var selectionBox = new THREE.Mesh(boxGeometry, boxMaterial);
+  selectionBox.userData.isCameraSelectionBox = true;
+  
+  // Create group
+  var cameraGroup = new THREE.Group();
+  cameraGroup.name = "Camera_Helper";
+  cameraGroup.add(cameraMesh);
+  cameraGroup.add(line);
+  cameraGroup.add(selectionBox);
+  cameraGroup.userData.isCameraHelper = true;
+  cameraGroup.userData.cameraObject = cameraObj;
+  
+  // Make the entire group selectable by adding userData to the group itself
+  cameraGroup.userData.isCameraGroup = true;
+  
+  return cameraGroup;
+}
+
+// Create a new camera object
+function createCameraObject() {
+  var spawnPos = new THREE.Vector3();
+  camera.getWorldDirection(spawnPos);
+  spawnPos.multiplyScalar(3);
+  spawnPos.add(camera.position);
+  spawnPos.y = Math.max(spawnPos.y, 1);
+  
+  // Create camera
+  var newCamera = new THREE.PerspectiveCamera(50, renderer.domElement.width / renderer.domElement.height, 0.1, 1000);
+  newCamera.position.copy(spawnPos);
+  newCamera.lookAt(spawnPos.x, spawnPos.y - 1, spawnPos.z);
+  newCamera.name = "Camera_" + (cameras.length);
+  
+  // Create camera helper
+  var cameraHelper = createCameraHelper(newCamera);
+  cameraHelper.position.copy(newCamera.position);
+  cameraHelper.rotation.copy(newCamera.rotation);
+  scene.add(cameraHelper);
+  
+  // Add to selectable objects
+  selectableObjects.push(cameraHelper);
+  
+  // Add to cameras array
+  cameras.push({
+    camera: newCamera,
+    name: newCamera.name,
+    object: cameraHelper,
+    helper: cameraHelper
+  });
+  
+  // Update camera dropdown
+  updateCameraDropdown();
+  
+  // Select the camera
+  selectCameraObject(cameraHelper);
+  
+  showNotification('Camera added: ' + newCamera.name);
+  updateObjectCount();
+  
+  return cameraHelper;
+}
+
+// Update camera dropdown
+function updateCameraDropdown() {
+  var select = document.getElementById('cameraSelect');
+  select.innerHTML = '';
+  
+  cameras.forEach(function(cam, index) {
+    var option = document.createElement('option');
+    option.value = index;
+    option.textContent = cam.name + (index === activeCameraIndex ? ' (Active)' : '');
+    if (index === activeCameraIndex) {
+      option.selected = true;
+    }
+    select.appendChild(option);
+  });
+}
+
+// Set active camera
+function setActiveCamera(index) {
+  if (index < 0 || index >= cameras.length) return;
+  
+  activeCameraIndex = index;
+  var activeCam = cameras[activeCameraIndex];
+  
+  // Update camera dropdown
+  updateCameraDropdown();
+  
+  // Update UI
+  document.getElementById('cameraModeBtn').textContent = 'Camera Mode: ' + (cameraModeActive ? 'ON' : 'OFF');
+  
+  // If we're in camera mode, switch to this camera
+  if (cameraModeActive) {
+    enterCameraMode();
+  }
+  
+  showNotification('Active camera: ' + activeCam.name);
+}
+
+// Enter camera mode (view from active camera)
+function enterCameraMode() {
+  if (activeCameraIndex < 0 || activeCameraIndex >= cameras.length) return;
+  
+  var activeCam = cameras[activeCameraIndex].camera;
+  
+  // Store the original camera state
+  if (!cameraModeActive) {
+    originalCameraState = {
+      position: camera.position.clone(),
+      rotation: camera.rotation.clone(),
+      fov: camera.fov,
+      aspect: camera.aspect,
+      near: camera.near,
+      far: camera.far
+    };
+  }
+  
+  // Switch to camera view
+  cameraModeActive = true;
+  camera.position.copy(activeCam.position);
+  camera.rotation.copy(activeCam.rotation);
+  camera.fov = activeCam.fov;
+  camera.aspect = activeCam.aspect;
+  camera.near = activeCam.near;
+  camera.far = activeCam.far;
+  camera.updateProjectionMatrix();
+  
+  // Disable orbit controls in camera mode
+  controls.enabled = false;
+  transformControls.enabled = false;
+  
+  // Update UI
+  document.getElementById('cameraModeBtn').textContent = 'Camera Mode: ON';
+  document.getElementById('cameraModeBtn').style.background = '#334433';
+  document.getElementById('cameraModeIndicator').style.display = 'block';
+  
+  showNotification('Entered camera mode: ' + cameras[activeCameraIndex].name);
+}
+
+// Exit camera mode (return to normal view)
+function exitCameraMode() {
+  if (!cameraModeActive) return;
+  
+  // Restore original camera state
+  if (originalCameraState) {
+    camera.position.copy(originalCameraState.position);
+    camera.rotation.copy(originalCameraState.rotation);
+    camera.fov = originalCameraState.fov;
+    camera.aspect = originalCameraState.aspect;
+    camera.near = originalCameraState.near;
+    camera.far = originalCameraState.far;
+    camera.updateProjectionMatrix();
+  }
+  
+  cameraModeActive = false;
+  
+  // Re-enable controls
+  controls.enabled = true;
+  transformControls.enabled = true;
+  
+  // Update UI
+  document.getElementById('cameraModeBtn').textContent = 'Camera Mode: OFF';
+  document.getElementById('cameraModeBtn').style.background = '#443333';
+  document.getElementById('cameraModeIndicator').style.display = 'none';
+  
+  showNotification('Exited camera mode');
+}
+
+// Toggle camera mode
+function toggleCameraMode() {
+  if (cameraModeActive) {
+    exitCameraMode();
+  } else {
+    enterCameraMode();
+  }
+}
+
+// Select camera object
+function selectCameraObject(cameraHelper) {
+  if (!cameraHelper || !cameraHelper.userData.isCameraHelper) return;
+  
+  currentSelection = cameraHelper;
+  transformControls.attach(cameraHelper);
+  originalTransform = { 
+    position: cameraHelper.position.clone(), 
+    rotation: cameraHelper.rotation.clone(), 
+    scale: cameraHelper.scale.clone() 
+  };
+  
+  // Highlight camera
+  removeHighlightLines();
+  createHighlightEdges(cameraHelper);
+  
+  // Find which camera this helper belongs to
+  for (var i = 0; i < cameras.length; i++) {
+    if (cameras[i].helper === currentSelection) {
+      // Update camera settings in UI
+      document.getElementById('fovSlider').value = cameras[i].camera.fov;
+      document.getElementById('fovValue').textContent = Math.round(cameras[i].camera.fov);
+      document.getElementById('cameraNear').value = cameras[i].camera.near;
+      document.getElementById('cameraFar').value = cameras[i].camera.far;
+      break;
+    }
+  }
+}
+
+// Align view to selected camera
+function alignViewToCamera(cam) {
+  if (!cam) return;
+  
+  // Store current camera position and rotation
+  var position = cam.position.clone();
+  var rotation = cam.rotation.clone();
+  
+  // Set orbit controls target to camera look direction
+  var direction = new THREE.Vector3(0, 0, -1);
+  direction.applyQuaternion(cam.quaternion);
+  var target = position.clone().add(direction.multiplyScalar(5));
+  
+  // Update main camera and controls
+  camera.position.copy(position);
+  camera.rotation.copy(rotation);
+  controls.target.copy(target);
+  controls.update();
+  
+  showNotification('View aligned to camera');
+}
+
+// Align selected camera to current view
+function alignCameraToView() {
+  if (!currentSelection || !currentSelection.userData.isCameraHelper) {
+    alert('Please select a camera object first.');
+    return;
+  }
+  
+  // Find the camera associated with this helper
+  var cameraObj = null;
+  var cameraData = null;
+  
+  for (var i = 0; i < cameras.length; i++) {
+    if (cameras[i].helper === currentSelection) {
+      cameraObj = cameras[i].camera;
+      cameraData = cameras[i];
+      break;
+    }
+  }
+  
+  if (!cameraObj) return;
+  
+  // Update camera position and rotation to match view
+  cameraObj.position.copy(camera.position);
+  cameraObj.rotation.copy(camera.rotation);
+  cameraObj.updateProjectionMatrix();
+  
+  // Update helper position and rotation
+  currentSelection.position.copy(camera.position);
+  currentSelection.rotation.copy(camera.rotation);
+  
+  showNotification('Camera aligned to view: ' + cameraData.name);
+}
+
+// Delete selected camera
+function deleteSelectedCamera() {
+  if (!currentSelection || !currentSelection.userData.isCameraHelper) {
+    alert('Please select a camera object to delete.');
+    return;
+  }
+  
+  // Find camera index
+  var cameraIndex = -1;
+  for (var i = 0; i < cameras.length; i++) {
+    if (cameras[i].helper === currentSelection) {
+      cameraIndex = i;
+      break;
+    }
+  }
+  
+  if (cameraIndex <= 0) { // Can't delete main camera
+    alert('Cannot delete the main camera.');
+    return;
+  }
+  
+  // If we're in camera mode with this camera, exit camera mode first
+  if (cameraModeActive && activeCameraIndex === cameraIndex) {
+    exitCameraMode();
+  }
+  
+  showConfirmModal(
+    'Delete Camera',
+    'Are you sure you want to delete camera "' + cameras[cameraIndex].name + '"?',
+    function() {
+      performCameraDelete(cameraIndex);
+    }
+  );
+}
+
+function performCameraDelete(index) {
+  if (index <= 0 || index >= cameras.length) return;
+  
+  var cameraName = cameras[index].name;
+  
+  // Remove helper from scene
+  if (cameras[index].helper && cameras[index].helper.parent) {
+    cameras[index].helper.parent.remove(cameras[index].helper);
+  }
+  
+  // Remove from selectable objects
+  var helperIndex = selectableObjects.indexOf(cameras[index].helper);
+  if (helperIndex > -1) {
+    selectableObjects.splice(helperIndex, 1);
+  }
+  
+  // Remove from cameras array
+  cameras.splice(index, 1);
+  
+  // If we deleted the active camera, switch to main camera
+  if (index === activeCameraIndex) {
+    activeCameraIndex = 0;
+  } else if (activeCameraIndex > index) {
+    activeCameraIndex--;
+  }
+  
+  // Update UI
+  updateCameraDropdown();
+  deselect();
+  updateObjectCount();
+  showNotification('Deleted camera: ' + cameraName);
+}
+
+// Toggle camera viewport
+function toggleCameraViewport() {
+  cameraViewportEnabled = !cameraViewportEnabled;
+  var viewportBtn = document.getElementById('toggleCameraViewBtn');
+  var viewport = document.getElementById('cameraViewport');
+  
+  if (cameraViewportEnabled) {
+    viewportBtn.textContent = 'Viewport: On';
+    viewport.classList.add('active');
+    
+    // Initialize camera renderer if needed
+    if (!cameraRenderer) {
+      initCameraViewport();
+    }
+    
+    // Update viewport
+    updateCameraViewport();
+  } else {
+    viewportBtn.textContent = 'Viewport: Off';
+    viewport.classList.remove('active');
+  }
+}
+
+// Initialize camera viewport renderer
+function initCameraViewport() {
+  var cameraCanvas = document.getElementById('cameraCanvas');
+  cameraRenderer = new THREE.WebGLRenderer({ 
+    canvas: cameraCanvas,
+    antialias: true,
+    alpha: true
+  });
+  cameraRenderer.setSize(320, 180);
+  cameraRenderer.setPixelRatio(1);
+  
+  cameraScene = new THREE.Scene();
+  cameraScene.background = new THREE.Color(0x222222);
+}
+
+// Update camera viewport
+function updateCameraViewport() {
+  if (!cameraViewportEnabled || !cameraRenderer || activeCameraIndex === 0) return;
+  
+  var activeCam = cameras[activeCameraIndex];
+  if (!activeCam) return;
+  
+  // Update viewport info
+  document.getElementById('cameraInfo').textContent = 'Camera: ' + activeCam.name;
+  
+  // Clone the scene for the viewport
+  cameraScene.copy(scene);
+  
+  // Update camera aspect ratio
+  activeCam.camera.aspect = 320 / 180;
+  activeCam.camera.updateProjectionMatrix();
+  
+  // Render
+  cameraRenderer.render(cameraScene, activeCam.camera);
+}
+
+// Camera UI Controls
+document.getElementById('addCameraBtn').addEventListener('click', function() {
+  createCameraObject();
+});
+
+document.getElementById('toggleCameraViewBtn').addEventListener('click', toggleCameraViewport);
+
+document.getElementById('cameraModeBtn').addEventListener('click', toggleCameraMode);
+
+document.getElementById('setActiveCameraBtn').addEventListener('click', function() {
+  var select = document.getElementById('cameraSelect');
+  var index = parseInt(select.value);
+  setActiveCamera(index);
+});
+
+document.getElementById('deleteCameraBtn').addEventListener('click', deleteSelectedCamera);
+
+document.getElementById('alignViewToCameraBtn').addEventListener('click', function() {
+  if (activeCameraIndex === 0) {
+    showNotification('Main camera is already active');
+    return;
+  }
+  alignViewToCamera(cameras[activeCameraIndex].camera);
+});
+
+document.getElementById('alignCameraToViewBtn').addEventListener('click', alignCameraToView);
+
+document.getElementById('fovSlider').addEventListener('input', function(e) {
+  var fov = parseInt(e.target.value);
+  document.getElementById('fovValue').textContent = fov;
+  
+  // Update selected camera's FOV
+  if (currentSelection && currentSelection.userData.isCameraHelper) {
+    for (var i = 0; i < cameras.length; i++) {
+      if (cameras[i].helper === currentSelection) {
+        cameras[i].camera.fov = fov;
+        cameras[i].camera.updateProjectionMatrix();
+        
+        // If we're in camera mode with this camera, update the view camera too
+        if (cameraModeActive && activeCameraIndex === i) {
+          camera.fov = fov;
+          camera.updateProjectionMatrix();
+        }
+        break;
+      }
+    }
+  }
+});
+
+document.getElementById('cameraNear').addEventListener('change', function(e) {
+  var near = parseFloat(e.target.value);
+  
+  if (currentSelection && currentSelection.userData.isCameraHelper) {
+    for (var i = 0; i < cameras.length; i++) {
+      if (cameras[i].helper === currentSelection) {
+        cameras[i].camera.near = near;
+        cameras[i].camera.updateProjectionMatrix();
+        
+        // If we're in camera mode with this camera, update the view camera too
+        if (cameraModeActive && activeCameraIndex === i) {
+          camera.near = near;
+          camera.updateProjectionMatrix();
+        }
+        break;
+      }
+    }
+  }
+});
+
+document.getElementById('cameraFar').addEventListener('change', function(e) {
+  var far = parseFloat(e.target.value);
+  
+  if (currentSelection && currentSelection.userData.isCameraHelper) {
+    for (var i = 0; i < cameras.length; i++) {
+      if (cameras[i].helper === currentSelection) {
+        cameras[i].camera.far = far;
+        cameras[i].camera.updateProjectionMatrix();
+        
+        // If we're in camera mode with this camera, update the view camera too
+        if (cameraModeActive && activeCameraIndex === i) {
+          camera.far = far;
+          camera.updateProjectionMatrix();
+        }
+        break;
+      }
+    }
+  }
+});
+
+// Viewport controls
+document.querySelector('#cameraViewport .close-viewport').addEventListener('click', function() {
+  cameraViewportEnabled = false;
+  document.getElementById('toggleCameraViewBtn').textContent = 'Viewport: Off';
+  document.getElementById('cameraViewport').classList.remove('active');
+});
+
+document.getElementById('viewportToggleCamera').addEventListener('click', function() {
+  if (activeCameraIndex !== 0) {
+    if (!cameraModeActive) {
+      enterCameraMode();
+    }
+  }
+});
+
+document.getElementById('viewportExitCamera').addEventListener('click', function() {
+  if (cameraModeActive) {
+    exitCameraMode();
+  }
+});
+
+// Keyboard shortcuts for camera mode
+window.addEventListener('keydown', function(e) {
+  // Numpad 0 to toggle camera mode (like Blender)
+  if (e.key === '0' && e.location === 3) { // Numpad 0
+    e.preventDefault();
+    toggleCameraMode();
+  }
+  
+  // Ctrl+Numpad 0 to switch to selected camera
+  if ((e.ctrlKey || e.metaKey) && e.key === '0' && e.location === 3) {
+    e.preventDefault();
+    if (currentSelection && currentSelection.userData.isCameraHelper) {
+      for (var i = 0; i < cameras.length; i++) {
+        if (cameras[i].helper === currentSelection) {
+          setActiveCamera(i);
+          if (!cameraModeActive) {
+            enterCameraMode();
+          }
+          break;
+        }
+      }
+    }
+  }
+  
+  // Escape to exit camera mode
+  if (e.key === 'Escape' && cameraModeActive) {
+    e.preventDefault();
+    exitCameraMode();
+  }
+});
+
+/* =========================
+   Clipboard and Edit Tools System
+   ========================= */
+var clipboard = null; // Stores copied object data
+var objectCounter = 0; // For naming duplicates
+var hiddenObjects = []; // Store hidden objects
+var objectGroups = new Map(); // Store object groupings
+var selectedObjects = []; // For multi-selection support
+
+// Update object count display
+function updateObjectCount() {
+  var count = 0;
+  scene.traverse(function(obj) {
+    if (obj.isMesh || (obj.userData && (obj.userData.isLightSphere || obj.userData.isBoneBall || obj.userData.isCameraHelper))) {
+      count++;
+    }
+  });
+  document.getElementById('objectCount').textContent = count;
+}
+
+// Get unique name for duplicate
+function getUniqueName(baseName) {
+  var name = baseName;
+  var counter = 1;
+  var exists = true;
+  
+  while (exists) {
+    exists = false;
+    scene.traverse(function(obj) {
+      if (obj.name === name) {
+        exists = true;
+      }
+    });
+    if (exists) {
+      name = baseName + "_" + counter;
+      counter++;
+    }
+  }
+  return name;
+}
+
+// Deep clone an object
+function cloneObject(original) {
+  if (!original) return null;
+  
+  var clone = null;
+  
+  if (original.isMesh) {
+    // Clone geometry and material
+    var geometry = original.geometry ? original.geometry.clone() : null;
+    var material = original.material ? original.material.clone() : null;
+    
+    if (geometry && material) {
+      clone = new THREE.Mesh(geometry, material);
+      clone.name = getUniqueName(original.name + "_copy");
+      
+      // Copy properties
+      clone.position.copy(original.position);
+      clone.rotation.copy(original.rotation);
+      clone.scale.copy(original.scale);
+      clone.castShadow = original.castShadow;
+      clone.receiveShadow = original.receiveShadow;
+      clone.visible = original.visible;
+      
+      // Copy userData
+      clone.userData = JSON.parse(JSON.stringify(original.userData || {}));
+      
+      // Store original material reference
+      if (original.userData && original.userData.originalMaterial) {
+        clone.userData.originalMaterial = original.userData.originalMaterial.clone();
+      }
+    }
+  } else if (original.userData && original.userData.isLightSphere) {
+    // Clone light sphere
+    var light = original.userData.pointLight;
+    if (light) {
+      var lightClone = light.clone();
+      lightClone.position.copy(light.position);
+      scene.add(lightClone);
+      
+      var sphereMat = new THREE.MeshStandardMaterial({
+        emissive: light.color,
+        emissiveIntensity: 1,
+        metalness: 1,
+        roughness: 0.2
+      });
+      
+      clone = new THREE.Mesh(sGeo, sphereMat);
+      clone.position.copy(original.position);
+      clone.position.x += 0.5; // Offset slightly
+      clone.name = getUniqueName(light.type + "_copy");
+      clone.userData.pointLight = lightClone;
+      clone.userData.isLightSphere = true;
+      
+      // Add bloom to cloned light
+      if (bloomEnabled) {
+        addBloomToLight(lightClone, clone);
+      }
+      
+      // Setup transformation
+      clone.onBeforeRender = function() {
+        if (lightClone && clone.position.distanceTo(lightClone.position) > 0.001) {
+          lightClone.position.copy(clone.position);
+        }
+      };
+    }
+  } else if (original.userData && original.userData.isCameraHelper) {
+    // Clone camera
+    for (var i = 0; i < cameras.length; i++) {
+      if (cameras[i].helper === original) {
+        var cameraClone = cameras[i].camera.clone();
+        cameraClone.position.copy(cameras[i].camera.position);
+        cameraClone.position.x += 0.5; // Offset slightly
+        cameraClone.lookAt(cameraClone.position.x, cameraClone.position.y - 1, cameraClone.position.z);
+        cameraClone.name = getUniqueName(cameras[i].camera.name + "_copy");
+        
+        var cameraHelperClone = createCameraHelper(cameraClone);
+        cameraHelperClone.position.copy(cameraClone.position);
+        cameraHelperClone.rotation.copy(cameraClone.rotation);
+        scene.add(cameraHelperClone);
+        
+        // Add to selectable objects
+        selectableObjects.push(cameraHelperClone);
+        
+        cameras.push({
+          camera: cameraClone,
+          name: cameraClone.name,
+          object: cameraHelperClone,
+          helper: cameraHelperClone
+        });
+        
+        updateCameraDropdown();
+        updateObjectCount();
+        return cameraHelperClone;
+      }
+    }
+  }
+  
+  return clone;
+}
+
+// Copy selected object
+function copySelected() {
+  if (!currentSelection) {
+    alert('Please select an object to copy.');
+    return;
+  }
+  
+  // Serialize object data for clipboard
+  clipboard = {
+    type: currentSelection.isMesh ? 'mesh' : 
+          currentSelection.userData.isLightSphere ? 'light' :
+          currentSelection.userData.isCameraHelper ? 'camera' : 'other',
+    name: currentSelection.name,
+    position: currentSelection.position.toArray(),
+    rotation: currentSelection.rotation.toArray(),
+    scale: currentSelection.scale.toArray(),
+    timestamp: Date.now()
+  };
+  
+  // Store the actual object reference (for internal paste)
+  clipboard._objectRef = currentSelection;
+  
+  console.log('Copied:', currentSelection.name);
+  showNotification('Copied: ' + currentSelection.name);
+}
+
+// Paste copied object
+function pasteObject() {
+  if (!clipboard) {
+    alert('Nothing to paste. Copy an object first.');
+    return;
+  }
+  
+  var newObj = null;
+  
+  if (clipboard._objectRef) {
+    // Clone from the stored reference
+    newObj = cloneObject(clipboard._objectRef);
+  } else {
+    // Fallback: create a simple cube
+    newObj = createMesh(new THREE.BoxBufferGeometry(1, 1, 1));
+    newObj.name = getUniqueName('pasted_object');
+  }
+  
+  if (newObj) {
+    // Position in front of camera
+    var spawnPos = new THREE.Vector3();
+    camera.getWorldDirection(spawnPos);
+    spawnPos.multiplyScalar(2);
+    spawnPos.add(camera.position);
+    spawnPos.y = Math.max(spawnPos.y, -1);
+    
+    newObj.position.copy(spawnPos);
+    
+    // Add to scene and selectable objects if not already added
+    if (newObj.parent !== scene) {
+      scene.add(newObj);
+    }
+    
+    if (!selectableObjects.includes(newObj)) {
+      selectableObjects.push(newObj);
+    }
+    
+    // Select the new object
+    if (newObj.userData && newObj.userData.isCameraHelper) {
+      selectCameraObject(newObj);
+    } else if (newObj.userData && newObj.userData.isLightSphere) {
+      selectLightSphere(newObj);
+    } else {
+      selectRootObject(newObj);
+    }
+    
+    // Apply SSAO if enabled
+    if (graphicsSettings.ssaoEnabled) {
+      applySSAOToObject(newObj, graphicsSettings.ssaoRadius, graphicsSettings.ssaoIntensity);
+    }
+    
+    updateObjectCount();
+    showNotification('Pasted: ' + newObj.name);
+  }
+}
+
+// Duplicate selected object
+function duplicateSelected() {
+  if (!currentSelection) {
+    alert('Please select an object to duplicate.');
+    return;
+  }
+  
+  var duplicate = cloneObject(currentSelection);
+  if (duplicate) {
+    // Offset position
+    duplicate.position.x += 0.5;
+    duplicate.position.z += 0.5;
+    
+    scene.add(duplicate);
+    selectableObjects.push(duplicate);
+    
+    // Select the duplicate
+    if (duplicate.userData && duplicate.userData.isCameraHelper) {
+      selectCameraObject(duplicate);
+    } else if (duplicate.userData && duplicate.userData.isLightSphere) {
+      selectLightSphere(duplicate);
+    } else {
+      selectRootObject(duplicate);
+    }
+    
+    // Apply SSAO if enabled
+    if (graphicsSettings.ssaoEnabled) {
+      applySSAOToObject(duplicate, graphicsSettings.ssaoRadius, graphicsSettings.ssaoIntensity);
+    }
+    
+    updateObjectCount();
+    showNotification('Duplicated: ' + duplicate.name);
+  }
+}
+
+// Delete selected object with confirmation
+function deleteSelected() {
+  if (!currentSelection) {
+    alert('Please select an object to delete.');
+    return;
+  }
+  
+  // Check if it's a camera
+  if (currentSelection.userData && currentSelection.userData.isCameraHelper) {
+    deleteSelectedCamera();
+    return;
+  }
+  
+  var objectName = currentSelection.name || 'Selected Object';
+  showConfirmModal(
+    'Delete Object',
+    'Are you sure you want to delete "' + objectName + '"? This action cannot be undone.',
+    function() {
+      performDelete();
+    }
+  );
+}
+
+function performDelete() {
+  if (!currentSelection) return;
+  
+  var objToDelete = currentSelection;
+  var objName = objToDelete.name || 'Object';
+  
+  // Remove from scene
+  if (objToDelete.parent) {
+    // If it's a light sphere, also remove the light
+    if (objToDelete.userData && objToDelete.userData.pointLight) {
+      var light = objToDelete.userData.pointLight;
+      if (light.parent) {
+        light.parent.remove(light);
+      }
+      
+      // Remove bloom sprites for this light
+      bloomSprites = bloomSprites.filter(function(bloomData) {
+        if (bloomData.light === light) {
+          if (bloomData.sprite && bloomData.sprite.parent) {
+            bloomData.sprite.parent.remove(bloomData.sprite);
+            if (bloomData.sprite.material.map) {
+              bloomData.sprite.material.map.dispose();
+            }
+            bloomData.sprite.material.dispose();
+          }
+          return false;
+        }
+        return true;
+      });
+    }
+    
+    // If it's a spotlight, remove the target too
+    if (objToDelete.userData && objToDelete.userData.pointLight && objToDelete.userData.pointLight.target) {
+      var target = objToDelete.userData.pointLight.target;
+      if (target.parent) {
+        target.parent.remove(target);
+      }
+    }
+    
+    objToDelete.parent.remove(objToDelete);
+  }
+  
+  // Remove from selectable objects
+  var index = selectableObjects.indexOf(objToDelete);
+  if (index > -1) {
+    selectableObjects.splice(index, 1);
+  }
+  
+  // Clean up geometry and materials
+  if (objToDelete.geometry) {
+    objToDelete.geometry.dispose();
+  }
+  if (objToDelete.material) {
+    if (Array.isArray(objToDelete.material)) {
+      objToDelete.material.forEach(function(mat) {
+        if (mat.map) mat.map.dispose();
+        mat.dispose();
+      });
+    } else {
+      if (objToDelete.material.map) objToDelete.material.map.dispose();
+      objToDelete.material.dispose();
+    }
+  }
+  
+  // Remove from keyframes if animated
+  keyframes.delete(objToDelete);
+  
+  deselect();
+  updateObjectCount();
+  showNotification('Deleted: ' + objName);
+}
+
+// Rename selected object
+function renameSelected() {
+  if (!currentSelection) {
+    alert('Please select an object to rename.');
+    return;
+  }
+  
+  var newName = prompt('Enter new name for object:', currentSelection.name || 'Object');
+  if (newName && newName.trim() !== '') {
+    currentSelection.name = newName.trim();
+    
+    // If it's a camera, update the cameras array
+    if (currentSelection.userData && currentSelection.userData.isCameraHelper) {
+      for (var i = 0; i < cameras.length; i++) {
+        if (cameras[i].helper === currentSelection) {
+          cameras[i].name = newName.trim();
+          cameras[i].camera.name = newName.trim();
+          updateCameraDropdown();
+          break;
+        }
+      }
+    }
+    
+    showNotification('Renamed to: ' + currentSelection.name);
+  }
+}
+
+// Select all objects
+function selectAllObjects() {
+  // For now, just select the first object
+  // In a more advanced version, you could implement multi-selection
+  if (selectableObjects.length > 0) {
+    var obj = selectableObjects[0];
+    
+    if (obj.userData && obj.userData.isCameraHelper) {
+      selectCameraObject(obj);
+    } else if (obj.userData && obj.userData.isLightSphere) {
+      selectLightSphere(obj);
+    } else {
+      selectRootObject(obj);
+    }
+    
+    showNotification('Selected: ' + obj.name);
+  }
+}
+
+// Hide selected object
+function hideSelected() {
+  if (!currentSelection) {
+    alert('Please select an object to hide.');
+    return;
+  }
+  
+  currentSelection.visible = false;
+  hiddenObjects.push(currentSelection);
+  deselect();
+  showNotification('Hidden: ' + currentSelection.name);
+}
+
+// Show all hidden objects
+function showAllHidden() {
+  hiddenObjects.forEach(function(obj) {
+    obj.visible = true;
+  });
+  hiddenObjects = [];
+  showNotification('All objects shown');
+}
+
+// Group selected objects (basic implementation)
+function groupSelected() {
+  if (!currentSelection) {
+    alert('Please select objects to group.');
+    return;
+  }
+  
+  // For simplicity, we'll just create a parent container
+  var group = new THREE.Group();
+  group.name = getUniqueName('Group');
+  group.position.copy(currentSelection.position);
+  
+  // Store original parent
+  var originalParent = currentSelection.parent;
+  
+  // Add to group
+  group.add(currentSelection);
+  
+  // Add group to original parent
+  if (originalParent) {
+    originalParent.add(group);
+  } else {
+    scene.add(group);
+  }
+  
+  // Update selection
+  selectRootObject(group);
+  showNotification('Group created: ' + group.name);
+}
+
+// Ungroup selected object
+function ungroupSelected() {
+  if (!currentSelection || !currentSelection.isGroup) {
+    alert('Please select a group to ungroup.');
+    return;
+  }
+  
+  var group = currentSelection;
+  var children = group.children.slice(); // Copy array
+  
+  children.forEach(function(child) {
+    group.remove(child);
+    scene.add(child);
+    selectableObjects.push(child);
+  });
+  
+  // Remove group
+  if (group.parent) {
+    group.parent.remove(group);
+  }
+  
+  // Clean up
+  var index = selectableObjects.indexOf(group);
+  if (index > -1) {
+    selectableObjects.splice(index, 1);
+  }
+  
+  deselect();
+  showNotification('Ungrouped: ' + group.name);
+}
+
+// Show notification
+function showNotification(message) {
+  // Create notification element
+  var notification = document.createElement('div');
+  notification.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: linear-gradient(#2b2b2b, #262626);
+    color: #fff;
+    padding: 10px 15px;
+    border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.1);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    z-index: 1000;
+    font-size: 13px;
+    max-width: 300px;
+    word-wrap: break-word;
+    animation: slideIn 0.3s ease;
+  `;
+  
+  notification.textContent = message;
+  document.body.appendChild(notification);
+  
+  // Remove after 3 seconds
+  setTimeout(function() {
+    notification.style.animation = 'slideOut 0.3s ease';
+    setTimeout(function() {
+      if (notification.parentNode) {
+        notification.parentNode.removeChild(notification);
+      }
+    }, 300);
+  }, 3000);
+}
+
+// Add CSS animations
+var style = document.createElement('style');
+style.textContent = `
+  @keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+  @keyframes slideOut {
+    from { transform: translateX(0); opacity: 1; }
+    to { transform: translateX(100%); opacity: 0; }
+  }
+`;
+document.head.appendChild(style);
+
+// Confirmation modal
+var confirmModal = document.getElementById('confirmModal');
+var modalConfirm = document.getElementById('modalConfirm');
+var modalCancel = document.getElementById('modalCancel');
+var modalMessage = document.getElementById('modalMessage');
+var confirmCallback = null;
+
+function showConfirmModal(title, message, callback) {
+  document.querySelector('#confirmModal .modal-title').textContent = title;
+  modalMessage.textContent = message;
+  confirmCallback = callback;
+  confirmModal.style.display = 'flex';
+}
+
+function hideConfirmModal() {
+  confirmModal.style.display = 'none';
+  confirmCallback = null;
+}
+
+modalConfirm.addEventListener('click', function() {
+  if (confirmCallback) {
+    confirmCallback();
+  }
+  hideConfirmModal();
+});
+
+modalCancel.addEventListener('click', hideConfirmModal);
+
+// Close modal when clicking outside
+confirmModal.addEventListener('click', function(e) {
+  if (e.target === confirmModal) {
+    hideConfirmModal();
+  }
+});
+
+// Edit Tools UI Controls
+document.getElementById('copyBtn').addEventListener('click', copySelected);
+document.getElementById('pasteBtn').addEventListener('click', pasteObject);
+document.getElementById('duplicateBtn').addEventListener('click', duplicateSelected);
+document.getElementById('deleteBtn').addEventListener('click', deleteSelected);
+document.getElementById('renameBtn').addEventListener('click', renameSelected);
+document.getElementById('selectAllBtn').addEventListener('click', selectAllObjects);
+document.getElementById('deselectBtn').addEventListener('click', deselect);
+document.getElementById('groupBtn').addEventListener('click', groupSelected);
+document.getElementById('ungroupBtn').addEventListener('click', ungroupSelected);
+document.getElementById('hideBtn').addEventListener('click', hideSelected);
+
+// Keyboard shortcuts for edit tools
+window.addEventListener('keydown', function(e) {
+  // Don't trigger if user is typing in an input field
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+    return;
+  }
+  
+  // Ctrl+C / Cmd+C for Copy
+  if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+    e.preventDefault();
+    copySelected();
+  }
+  
+  // Ctrl+V / Cmd+V for Paste
+  if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+    e.preventDefault();
+    pasteObject();
+  }
+  
+  // Ctrl+D / Cmd+D for Duplicate
+  if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
+    e.preventDefault();
+    duplicateSelected();
+  }
+  
+  // Delete or Backspace for Delete
+  if (e.key === 'Delete' || e.key === 'Backspace') {
+    e.preventDefault();
+    deleteSelected();
+  }
+  
+  // Ctrl+A / Cmd+A for Select All
+  if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+    e.preventDefault();
+    selectAllObjects();
+  }
+  
+  // Escape for Deselect
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    deselect();
+  }
+  
+  // Ctrl+H / Cmd+H for Hide
+  if ((e.ctrlKey || e.metaKey) && e.key === 'h') {
+    e.preventDefault();
+    hideSelected();
+  }
+  
+  // Ctrl+G / Cmd+G for Group
+  if ((e.ctrlKey || e.metaKey) && e.key === 'g') {
+    e.preventDefault();
+    if (!e.shiftKey) {
+      groupSelected();
+    } else {
+      // Shift+Ctrl+G for Ungroup
+      ungroupSelected();
+    }
+  }
+});
+
+/* =========================
+   Graphics Improvements System
+   ========================= */
+var graphicsSettings = {
+  ssaoEnabled: true,
+  fxaaEnabled: true,
+  toneMappingEnabled: true,
+  ssaoRadius: 1.0,
+  ssaoIntensity: 1.0,
+  performanceMode: false,
+  simplifiedGeometries: new WeakMap(), // Store simplified versions of geometries
+  // Shadow quality settings
+  shadowQuality: 4, // 1=Lowest, 5=Highest
+  shadowMapResolutions: {
+    1: 256,   // Lowest
+    2: 512,   // Low
+    3: 1024,  // Medium
+    4: 2048,  // High
+    5: 4096   // Highest
+  },
+  // NEW: Shadow bias settings
+  shadowBias: -0.0001,
+  normalBias: 0.02
+};
+
+// Update shadow quality for all lights
+function updateShadowQuality() {
+  var resolution = graphicsSettings.shadowMapResolutions[graphicsSettings.shadowQuality];
+  
+  // Update all shadow-casting lights
+  scene.traverse(function(node) {
+    if (node.isLight && node.castShadow) {
+      node.shadow.mapSize.width = resolution;
+      node.shadow.mapSize.height = resolution;
+      
+      // Update shadow bias settings
+      node.shadow.bias = graphicsSettings.shadowBias;
+      node.shadow.normalBias = graphicsSettings.normalBias;
+      
+      // For directional lights, increase shadow camera frustum for better coverage
+      if (node.isDirectionalLight) {
+        node.shadow.camera.left = -20;
+        node.shadow.camera.right = 20;
+        node.shadow.camera.top = 20;
+        node.shadow.camera.bottom = -20;
+        node.shadow.camera.near = 0.5;
+        node.shadow.camera.far = 50;
+      }
+      
+      // Force shadow map update
+      if (node.shadow.map) {
+        node.shadow.map.dispose();
+        node.shadow.map = null;
+      }
+    }
+  });
+  
+  // Update UI
+  var qualityNames = {
+    1: 'Lowest',
+    2: 'Low', 
+    3: 'Medium',
+    4: 'High',
+    5: 'Highest'
+  };
+  
+  document.getElementById('shadowQualityValue').textContent = qualityNames[graphicsSettings.shadowQuality];
+  
+  showNotification('Shadow quality set to: ' + qualityNames[graphicsSettings.shadowQuality]);
+}
+
+// NEW: Update shadow bias settings
+function updateShadowBias() {
+  scene.traverse(function(node) {
+    if (node.isLight && node.castShadow) {
+      node.shadow.bias = graphicsSettings.shadowBias;
+      node.shadow.normalBias = graphicsSettings.normalBias;
+      
+      // Force shadow map update
+      if (node.shadow.map) {
+        node.shadow.map.dispose();
+        node.shadow.map = null;
+      }
+    }
+  });
+  
+  // Update UI
+  document.getElementById('shadowBiasValue').textContent = graphicsSettings.shadowBias.toFixed(6);
+  document.getElementById('normalBiasValue').textContent = graphicsSettings.normalBias.toFixed(3);
+  
+  showNotification('Shadow bias updated');
+}
+
+// Simple SSAO simulation (fake SSAO using vertex colors)
+function applySSAOToObject(obj, radius, intensity) {
+  if (!graphicsSettings.ssaoEnabled) return;
+  
+  obj.traverse(function(node) {
+    if (node.isMesh && node.geometry) {
+      // Create or update vertex colors for fake ambient occlusion
+      if (!node.geometry.attributes.color) {
+        var colors = [];
+        var positionAttribute = node.geometry.attributes.position;
+        
+        for (var i = 0; i <positionAttribute.count; i++) {
+          var x = positionAttribute.getX(i);
+          var y = positionAttribute.getY(i);
+          var z = positionAttribute.getZ(i);
+          
+          // Simple fake occlusion based on Y position (darker at bottom)
+          var occlusion = Math.max(0.3, 1.0 - (Math.abs(y) * 0.2 * intensity));
+          colors.push(occlusion, occlusion, occlusion);
+        }
+        
+        node.geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+        if (node.material) {
+          node.material.vertexColors = true;
+          node.material.needsUpdate = true;
+        }
+      }
+    }
+  });
+}
+
+// Apply FXAA by adjusting renderer settings
+function applyFXAA(renderer) {
+  if (graphicsSettings.fxaaEnabled) {
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5)); // Lower pixel ratio for performance
+    renderer.antialias = true;
+  } else {
+    renderer.antialias = false;
+  }
+}
+
+// Apply tone mapping
+function applyToneMapping(renderer) {
+  if (graphicsSettings.toneMappingEnabled) {
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.0;
+  } else {
+    renderer.toneMapping = THREE.NoToneMapping;
+  }
+}
+
+// Geometry optimization for performance
+function optimizeGeometry(geometry, reductionFactor) {
+  if (!geometry.isBufferGeometry) return geometry;
+  
+  // Simple vertex reduction (for demonstration)
+  // In a real implementation, you'd use THREE.SimplifyModifier
+  return geometry;
+}
+
+// Optimize scene for performance
+function optimizeSceneForPerformance() {
+  graphicsSettings.performanceMode = true;
+  
+  scene.traverse(function(node) {
+    if (node.isMesh && node.geometry) {
+      // Reduce geometry complexity if not already simplified
+      if (!graphicsSettings.simplifiedGeometries.has(node.geometry)) {
+        // For spheres, reduce segments
+        if (node.geometry.type === 'SphereGeometry' || 
+            node.geometry.parameters && node.geometry.parameters.radius) {
+          var params = node.geometry.parameters;
+          var newGeo = new THREE.SphereGeometry(
+            params.radius,
+            Math.max(8, Math.floor(params.widthSegments / 2)),
+            Math.max(6, Math.floor(params.heightSegments / 2))
+          );
+          node.geometry.dispose();
+          node.geometry = newGeo;
+          graphicsSettings.simplifiedGeometries.set(newGeo, true);
+        }
+        // For boxes, keep as is (already simple)
+        // For complex geometries, you could add more optimization here
+      }
+      
+      // Reduce material complexity
+      if (node.material) {
+        if (Array.isArray(node.material)) {
+          node.material.forEach(function(mat) {
+            if (mat.isMeshStandardMaterial) {
+              mat.envMapIntensity = 0.5;
+              mat.roughness = Math.max(0.3, mat.roughness);
+            }
+          });
+        } else if (node.material.isMeshStandardMaterial) {
+          node.material.envMapIntensity = 0.5;
+          node.material.roughness = Math.max(0.3, node.material.roughness);
+        }
+      }
+    }
+  });
+  
+  // Reduce shadow map resolution when optimizing for performance
+  if (graphicsSettings.shadowQuality > 2) {
+    graphicsSettings.shadowQuality = 2; // Set to Low
+    updateShadowQuality();
+  }
+  
+  showNotification('Performance optimization applied');
+}
+
+// Graphics UI Controls
+document.getElementById('toggleSSAOBtn').addEventListener('click', function() {
+  graphicsSettings.ssaoEnabled = !graphicsSettings.ssaoEnabled;
+  this.textContent = 'SSAO: ' + (graphicsSettings.ssaoEnabled ? 'On' : 'Off');
+  
+  // Apply SSAO to all objects
+  if (graphicsSettings.ssaoEnabled) {
+    scene.traverse(function(node) {
+      if (node.isMesh) {
+        applySSAOToObject(node, graphicsSettings.ssaoRadius, graphicsSettings.ssaoIntensity);
+      }
+    });
+  } else {
+    // Remove vertex colors
+    scene.traverse(function(node) {
+      if (node.isMesh && node.geometry && node.geometry.attributes.color) {
+        node.geometry.deleteAttribute('color');
+        if (node.material) {
+          node.material.vertexColors = false;
+          node.material.needsUpdate = true;
+        }
+      }
+    });
+  }
+});
+
+document.getElementById('toggleFXAABtn').addEventListener('click', function() {
+  graphicsSettings.fxaaEnabled = !graphicsSettings.fxaaEnabled;
+  this.textContent = 'FXAA: ' + (graphicsSettings.fxaaEnabled ? 'On' : 'Off');
+  applyFXAA(renderer);
+});
+
+// Shadow quality slider
+document.getElementById('shadowQualitySlider').addEventListener('input', function(e) {
+  graphicsSettings.shadowQuality = parseInt(e.target.value);
+  updateShadowQuality();
+});
+
+// NEW: Shadow bias sliders
+document.getElementById('shadowBiasSlider').addEventListener('input', function(e) {
+  graphicsSettings.shadowBias = parseFloat(e.target.value);
+  updateShadowBias();
+});
+
+document.getElementById('normalBiasSlider').addEventListener('input', function(e) {
+  graphicsSettings.normalBias = parseFloat(e.target.value);
+  updateShadowBias();
+});
+
+document.getElementById('toggleToneMappingBtn').addEventListener('click', function() {
+  graphicsSettings.toneMappingEnabled = !graphicsSettings.toneMappingEnabled;
+  this.textContent = 'Tone Mapping: ' + (graphicsSettings.toneMappingEnabled ? 'On' : 'Off');
+  applyToneMapping(renderer);
+});
+
+document.getElementById('optimizePerformanceBtn').addEventListener('click', function() {
+  optimizeSceneForPerformance();
+  this.textContent = 'Optimized!';
+  setTimeout(() => { this.textContent = 'Optimize Perf'; }, 2000);
+});
+
+document.getElementById('ssaoRadiusSlider').addEventListener('input', function(e) {
+  graphicsSettings.ssaoRadius = parseFloat(e.target.value);
+  document.getElementById('ssaoRadiusValue').textContent = graphicsSettings.ssaoRadius.toFixed(1);
+});
+
+document.getElementById('ssaoIntensitySlider').addEventListener('input', function(e) {
+  graphicsSettings.ssaoIntensity = parseFloat(e.target.value);
+  document.getElementById('ssaoIntensityValue').textContent = graphicsSettings.ssaoIntensity.toFixed(1);
+});
+
+/* =========================
+   Scene + Renderer + Camera
+   ========================= */
+var scene = new THREE.Scene();
+scene.background = new THREE.Color(0x111111);
+var camera = mainCamera; // Use the main camera
+var renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1.5, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+function updateRendererSize(){ 
+  var sw = getSidebarWidth(); 
+  var apHeight = animationPanel.classList.contains('collapsed') ? 28 : 120; 
+  var w = Math.max(160, window.innerWidth - sw); 
+  var h = window.innerHeight - apHeight; 
+  renderer.setSize(w, h); 
+  renderer.domElement.style.position = 'absolute'; 
+  renderer.domElement.style.left = sw + 'px'; 
+  renderer.domElement.style.top = '0px'; 
+  camera.aspect = w / h; 
+  camera.updateProjectionMatrix(); 
+}
+window.addEventListener('resize', updateRendererSize);
+updateRendererSize();
+
+// Apply initial graphics settings
+applyFXAA(renderer);
+applyToneMapping(renderer);
+
+/* -------------------------
+   OrbitControls - SNAPPY
+   ------------------------- */
+var controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = false;
+
+/* =========================
+   Transform Controls
+   ========================= */
+var transformControls = new THREE.TransformControls(camera, renderer.domElement);
+transformControls.addEventListener('dragging-changed', function (event) { controls.enabled = !event.value; });
+scene.add(transformControls);
+
+/* =========================
+   FAKE BLOOM SYSTEM
+   ========================= */
+var bloomEnabled = true;
+var bloomSprites = []; // {light: THREE.Light, sprite: THREE.Sprite, helper: THREE.Mesh}
+var bloomSize = 2.0;
+var bloomIntensity = 1.0;
+
+// Create bloom texture (circular gradient)
+function createBloomTexture(color, size) {
+  var canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  var ctx = canvas.getContext('2d');
+  
+  // Create radial gradient
+  var gradient = ctx.createRadialGradient(
+    size/2, size/2, 0,
+    size/2, size/2, size/2
+  );
+  
+  gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+  gradient.addColorStop(0.3, color);
+  gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+  
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, size, size);
+  
+  var texture = new THREE.CanvasTexture(canvas);
+  texture.needsUpdate = true;
+  return texture;
+}
+
+// Create a bloom sprite for a light
+function createBloomSprite(light, helperMesh) {
+  if (!bloomEnabled) return null;
+  
+  // Get light color
+  var color = light.color || new THREE.Color(0xffffff);
+  var hexColor = '#' + color.getHexString();
+  var rgbaColor = hexColor + 'cc'; // Add transparency
+  
+  // Create sprite material with bloom texture
+  var textureSize = 256;
+  var bloomTexture = createBloomTexture(rgbaColor, textureSize);
+  var spriteMaterial = new THREE.SpriteMaterial({ 
+    map: bloomTexture, 
+    transparent: true, 
+    opacity: 0.8,
+    blending: THREE.AdditiveBlending,
+    depthTest: false,
+    depthWrite: false
+  });
+  
+  var sprite = new THREE.Sprite(spriteMaterial);
+  sprite.scale.set(bloomSize, bloomSize, 1);
+  sprite.userData.isBloomSprite = true;
+  sprite.userData.light = light;
+  sprite.userData.helper = helperMesh;
+  
+  // Position sprite at light
+  if (helperMesh) {
+    sprite.position.copy(helperMesh.position);
+  } else if (light) {
+    sprite.position.copy(light.position);
+  }
+  
+  scene.add(sprite);
+  return sprite;
+}
+
+// Update all bloom sprites
+function updateBloomSprites() {
+  bloomSprites.forEach(function(bloomData) {
+    if (bloomData.sprite && bloomData.sprite.parent) {
+      // Update position
+      if (bloomData.helper) {
+        bloomData.sprite.position.copy(bloomData.helper.position);
+      } else if (bloomData.light) {
+        bloomData.sprite.position.copy(bloomData.light.position);
+      }
+      
+      // Update scale based on current bloom size
+      bloomData.sprite.scale.set(bloomSize, bloomSize, 1);
+      
+      // Update opacity based on camera direction and light intensity
+      if (bloomData.light) {
+        var cameraToLight = new THREE.Vector3();
+        cameraToLight.subVectors(bloomData.sprite.position, camera.position).normalize();
+        var cameraDirection = new THREE.Vector3();
+        camera.getWorldDirection(cameraDirection);
+        
+        var dot = cameraDirection.dot(cameraToLight);
+        var facingRatio = Math.max(0, (dot + 0.3) / 1.3); // More visible when looking toward light
+        
+        var intensity = bloomData.light.intensity || 1;
+        var opacity = Math.min(0.9, intensity * 0.3 * facingRatio * bloomIntensity);
+        
+        bloomData.sprite.material.opacity = opacity;
+        
+        // Scale based on intensity and facing
+        var scaleMultiplier = 1 + (intensity * 0.2) + (facingRatio * 0.5);
+        bloomData.sprite.scale.set(
+          bloomSize * scaleMultiplier,
+          bloomSize * scaleMultiplier,
+          1
+        );
+      }
+    }
+  });
+}
+
+// Add bloom to existing light
+function addBloomToLight(light, helperMesh) {
+  var sprite = createBloomSprite(light, helperMesh);
+  if (sprite) {
+    bloomSprites.push({
+      light: light,
+      sprite: sprite,
+      helper: helperMesh
+    });
+  }
+}
+
+// Remove all bloom sprites
+function removeAllBloomSprites() {
+  bloomSprites.forEach(function(bloomData) {
+    if (bloomData.sprite && bloomData.sprite.parent) {
+      bloomData.sprite.parent.remove(bloomData.sprite);
+      if (bloomData.sprite.material.map) {
+        bloomData.sprite.material.map.dispose();
+      }
+      bloomData.sprite.material.dispose();
+    }
+  });
+  bloomSprites = [];
+}
+
+// Reload bloom for all lights
+function reloadBloom() {
+  removeAllBloomSprites();
+  
+  // Add bloom to all point lights (including main one)
+  addBloomToLight(pointLight, lightSphere);
+  
+  // Add bloom to spotlights
+  spotLights.forEach(function(spotData) {
+    addBloomToLight(spotData.light, spotData.helper);
+  });
+  
+  // Add bloom to area lights
+  areaLights.forEach(function(areaData) {
+    addBloomToLight(areaData.light, areaData.helper);
+  });
+}
+
+// Bloom UI Controls
+document.getElementById('toggleBloomBtn').addEventListener('click', function() {
+  bloomEnabled = !bloomEnabled;
+  this.textContent = 'Bloom: ' + (bloomEnabled ? 'On' : 'Off');
+  
+  if (bloomEnabled) {
+    reloadBloom();
+  } else {
+    removeAllBloomSprites();
+  }
+});
+
+document.getElementById('reloadBloomBtn').addEventListener('click', reloadBloom);
+
+document.getElementById('bloomSizeSlider').addEventListener('input', function(e) {
+  bloomSize = parseFloat(e.target.value);
+  document.getElementById('bloomSizeValue').textContent = bloomSize.toFixed(1);
+});
+
+document.getElementById('bloomIntensitySlider').addEventListener('input', function(e) {
+  bloomIntensity = parseFloat(e.target.value);
+  document.getElementById('bloomIntensityValue').textContent = bloomIntensity.toFixed(1);
+});
+
+/* =========================
+   Lights / Ground / Helpers
+   ========================= */
+var hemi = new THREE.HemisphereLight(0x808080, 0x202020, 0.25); scene.add(hemi);
+var dir = new THREE.DirectionalLight(0xffffff, 0.18); dir.position.set(-5,8,2); dir.castShadow = true; scene.add(dir);
+var gmat = new THREE.MeshStandardMaterial({color:0x222222, roughness:0.9, metalness:0.05});
+var ground = new THREE.Mesh(new THREE.PlaneBufferGeometry(50,50), gmat); ground.rotation.x = -Math.PI/2; ground.position.y = -1.2; ground.receiveShadow = true; scene.add(ground);
+var gridHelper = new THREE.GridHelper(50, 50, 0x444444, 0x222222); gridHelper.position.y = -1.19; scene.add(gridHelper); gridHelper.visible = true;
+var pointLight = new THREE.PointLight(0xffccaa, 2.2, 20, 2); pointLight.castShadow = true; pointLight.position.set(3,2,0); scene.add(pointLight);
+var sGeo = new THREE.SphereBufferGeometry(0.12, 16, 12);
+var sMat = new THREE.MeshStandardMaterial({emissive:0xffaa66, emissiveIntensity:1, metalness:1, roughness:0.2});
+var lightSphere = new THREE.Mesh(sGeo, sMat); lightSphere.position.copy(pointLight.position); scene.add(lightSphere);
+var spotLightSphereMat = new THREE.MeshStandardMaterial({emissive: 0x66aaff, emissiveIntensity: 1, metalness: 1, roughness: 0.2});
+var areaLightSphereMat = new THREE.MeshStandardMaterial({emissive: 0xff66cc, emissiveIntensity: 1, metalness: 1, roughness: 0.2});
+
+// Initialize bloom for main light
+addBloomToLight(pointLight, lightSphere);
+
+// Initialize shadow quality and bias settings
+updateShadowQuality();
+updateShadowBias();
+
+/* =========================
+   Selectable objects storage
+   ========================= */
+var selectableObjects = []; // objects that raycaster will consider
+
+/* helper to find top-level selectable root or target for helpers */
+function getSelectableRoot(obj) {
+  if (!obj) return null;
+  if (obj.userData && obj.userData.bone) return obj.userData.bone;
+  if (obj.userData && obj.userData.emptyNode) return obj.userData.emptyNode;
+  if (obj.userData && obj.userData.pointLight) return obj;
+  if (obj.userData && obj.userData.isCameraHelper) return obj;
+  var cur = obj;
+  while (cur.parent && cur.parent !== scene) {
+    cur = cur.parent;
+  }
+  return cur;
+}
+
+/* =========================
+   GLTF Loader
+   ========================= */
+var loader = new THREE.GLTFLoader();
+var textureLoader = new THREE.TextureLoader();
+var currentSelection = null;
+var originalTransform = null;
+var originalMaterial = null;
+var originalCameraState = null;
+
+/* highlight handling (edges for meshes) */
+var highlightLines = [];
+function removeHighlightLines() {
+  if (!highlightLines || highlightLines.length === 0) return;
+  highlightLines.forEach(function(item) {
+    try { if (item.parent && item.line) item.parent.remove(item.line); if (item.line && item.line.geometry) item.line.geometry.dispose(); if (item.line && item.line.material) item.line.material.dispose(); } catch(e){}
+  });
+  highlightLines = [];
+}
+function createHighlightEdges(root) {
+  removeHighlightLines();
+  if (!root) return;
+  var outlineColor = 0xffff66;
+  var lineMat = new THREE.LineBasicMaterial({ color: outlineColor, linewidth: 2, depthTest: false, depthWrite: false });
+  root.traverse(function(node){ if (node.isMesh) {
+      try {
+        var edgesGeo = new THREE.EdgesGeometry(node.geometry);
+        var line = new THREE.LineSegments(edgesGeo, lineMat.clone());
+        line.renderOrder = 9999;
+        node.add(line);
+        highlightLines.push({ parent: node, line: line });
+      } catch (err) { console.warn('Could not create edges for mesh:', node.name, err); }
+    }
+  });
+}
+
+/* =========================
+   Skeleton & Empty helpers management
+   ========================= */
+var skeletonHelpers = []; // SkeletonHelper objects
+var boneHandleBalls = []; // small spheres parented to bones used for selection
+var emptyAxes = []; // AxesHelper for empties
+
+function addSkeletonHelpersForModel(modelRoot) {
+  var skinnedMeshes = [];
+  modelRoot.traverse(function(n){ if (n.isSkinnedMesh) skinnedMeshes.push(n); });
+  if (skinnedMeshes.length === 0) return;
+  var skelHelper = new THREE.SkeletonHelper(modelRoot);
+  skelHelper.material.linewidth = 2;
+  skelHelper.visible = true;
+  scene.add(skelHelper);
+  skeletonHelpers.push(skelHelper);
+  skinnedMeshes.forEach(function(skinned){
+    var skeleton = skinned.skeleton;
+    if (!skeleton) return;
+    skeleton.bones.forEach(function(bone){
+      var ballMat = new THREE.MeshStandardMaterial({emissive:0x66ff66, metalness:0.8, roughness:0.3});
+      var ball = new THREE.Mesh(new THREE.SphereBufferGeometry(0.06, 10, 8), ballMat);
+      bone.add(ball);
+      ball.userData.bone = bone;
+      ball.userData.isBoneBall = true;
+      boneHandleBalls.push(ball);
+      selectableObjects.push(ball);
+    });
+  });
+}
+
+function addEmptyHelpersForModel(modelRoot) {
+  modelRoot.traverse(function(node){
+    if (!node.isMesh && !node.isCamera && !node.isLight) {
+      var hasGeomChild = false;
+      node.traverse(function(c){ if (c !== node && c.isMesh) hasGeomChild = true; });
+      if (!hasGeomChild) {
+        if (node === modelRoot) return;
+        var a = new THREE.AxesHelper(0.25);
+        a.userData.emptyNode = node;
+        node.add(a);
+        emptyAxes.push(a);
+        selectableObjects.push(a);
+      }
+    }
+  });
+}
+
+/* =========================
+   Animation System
+   ========================= */
+var keyframes = new Map(); // Map<object, Map<frame, {position, rotation, scale}>>
+var currentFrame = 0;
+var isPlaying = false;
+var loopAnimation = false;
+var animationStartTime = 0;
+var maxFrame = 100;
+var fps = 30;
+
+function setKeyframe() {
+  if (!currentSelection) {
+    alert('Please select an object to set a keyframe.');
+    return;
+  }
+  if (!keyframes.has(currentSelection)) {
+    keyframes.set(currentSelection, new Map());
+  }
+  var frameData = {
+    position: currentSelection.position.clone(),
+    rotation: currentSelection.rotation.clone(),
+    scale: currentSelection.scale.clone()
+  };
+  keyframes.get(currentSelection).set(currentFrame, frameData);
+}
+
+function deleteKeyframe() {
+  if (!currentSelection || !keyframes.has(currentSelection)) return;
+  keyframes.get(currentSelection).delete(currentFrame);
+  if (keyframes.get(currentSelection).size === 0) {
+    keyframes.delete(currentSelection);
+  }
+}
+
+function goToFrame(frame) {
+  currentFrame = Math.max(0, Math.min(frame, maxFrame));
+  document.getElementById('frameSlider').value = currentFrame;
+  document.getElementById('currentFrameValue').textContent = currentFrame;
+  document.getElementById('frameInput').value = currentFrame;
+  updateObjectTransforms();
+}
+
+function updateObjectTransforms() {
+  keyframes.forEach((frameMap, obj) => {
+    var frames = Array.from(frameMap.keys()).sort((a, b) => a - b);
+    if (frames.length === 0) return;
+    var prevFrame = frames.find(f => f <= currentFrame) || frames[0];
+    var nextFrame = frames.find(f => f > currentFrame) || prevFrame;
+    if (prevFrame === nextFrame) {
+      var data = frameMap.get(prevFrame);
+      obj.position.copy(data.position);
+      obj.rotation.copy(data.rotation);
+      obj.scale.copy(data.scale);
+    } else {
+      var t = (currentFrame - prevFrame) / (nextFrame - prevFrame);
+      var prevData = frameMap.get(prevFrame);
+      var nextData = frameMap.get(nextFrame);
+      obj.position.lerpVectors(prevData.position, nextData.position, t);
+      var prevQuat = new THREE.Quaternion().setFromEuler(prevData.rotation);
+      var nextQuat = new THREE.Quaternion().setFromEuler(nextData.rotation);
+      obj.quaternion.copy(prevQuat.slerp(nextQuat, t));
+      obj.scale.lerpVectors(prevData.scale, nextData.scale, t);
+    }
+  });
+}
+
+function playAnimation() {
+  if (isPlaying) {
+    isPlaying = false;
+    document.getElementById('playPauseBtn').textContent = 'Play';
+    transformControls.enabled = true;
+  } else {
+    isPlaying = true;
+    document.getElementById('playPauseBtn').textContent = 'Pause';
+    animationStartTime = Date.now() - (currentFrame / fps) * 1000;
+    transformControls.enabled = false;
+  }
+}
+
+/* Animation UI Controls */
+document.getElementById('setKeyframeBtn').addEventListener('click', setKeyframe);
+document.getElementById('deleteKeyframeBtn').addEventListener('click', deleteKeyframe);
+document.getElementById('frameSlider').addEventListener('input', function(e) {
+  goToFrame(parseInt(e.target.value));
+});
+document.getElementById('goToFrameBtn').addEventListener('click', function() {
+  goToFrame(parseInt(document.getElementById('frameInput').value));
+});
+document.getElementById('frameInput').addEventListener('change', function(e) {
+  goToFrame(parseInt(e.target.value));
+});
+document.getElementById('playPauseBtn').addEventListener('click', playAnimation);
+document.getElementById('toggleLoopBtn').addEventListener('click', function() {
+  loopAnimation = !loopAnimation;
+  this.textContent = `Loop: ${loopAnimation ? 'On' : 'Off'}`;
+});
+
+/* =========================
+   Drag & Drop GLB and Texture support
+   ========================= */
+var dropzone = document.getElementById("dropzone");
+window.addEventListener("dragover", function(e){ e.preventDefault(); dropzone.style.display = "flex"; });
+window.addEventListener("dragleave", function(e){ dropzone.style.display = "none"; });
+window.addEventListener("drop", function(e){ e.preventDefault(); dropzone.style.display = "none"; var file = e.dataTransfer.files && e.dataTransfer.files[0]; 
+  if(file && file.name.toLowerCase().endsWith('.glb')){ 
+    var reader = new FileReader(); 
+    reader.onload = function(ev){ 
+      var arrayBuffer = ev.target.result; 
+      loader.parse(arrayBuffer, '', function(gltf){ 
+        var modelRoot = gltf.scene || gltf.scenes[0]; 
+        modelRoot.position.set(0,-1.2,0);
+        modelRoot.traverse(function(node){ 
+          if(node.isMesh){ 
+            node.castShadow = true; 
+            node.receiveShadow = true; 
+            if (node.material) {
+              var origMat = node.material.clone();
+              origMat.userData = { originalMaterial: true };
+              node.material.userData = { originalMaterial: true };
+              node.userData.originalMaterial = origMat;
+            }
+          } 
+        }); 
+        scene.add(modelRoot); 
+        addSkeletonHelpersForModel(modelRoot); 
+        addEmptyHelpersForModel(modelRoot); 
+        selectableObjects.push(modelRoot); 
+        selectRootObject(modelRoot); 
+        // Apply SSAO to loaded model
+        if (graphicsSettings.ssaoEnabled) {
+          applySSAOToObject(modelRoot, graphicsSettings.ssaoRadius, graphicsSettings.ssaoIntensity);
+        }
+        updateObjectCount();
+        showNotification('Loaded: ' + (file.name || 'GLB Model'));
+      }, function(err){ console.error(err); alert('Error parsing glb'); }); 
+    }; 
+    reader.readAsArrayBuffer(file); 
+    } else if(file && /\.(jpg|jpeg|png)$/i.test(file.name)){ 
+    applyTextureFromFile(file); 
+  } else { 
+    alert('Please drop a .glb or image (.jpg, .png) file.'); 
+  } 
+});
+
+/* =========================
+   Material and Texture Management
+   ========================= */
+function applyMaterialToSelection(color, roughness, metalness, texture) {
+  if (!currentSelection || !currentSelection.traverse) return;
+  currentSelection.traverse(function(node) {
+    if (node.isMesh && node.material && node.material.isMeshStandardMaterial) {
+      if (color) node.material.color.set(color);
+      if (roughness !== undefined) node.material.roughness = roughness;
+      if (metalness !== undefined) node.material.metalness = metalness;
+      if (texture) {
+        node.material.map = texture;
+        node.material.needsUpdate = true;
+      }
+    }
+  });
+}
+
+function applyTextureFromFile(file) {
+  if (!currentSelection) {
+    alert('Please select a mesh first to apply a texture.');
+    return;
+  }
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    textureLoader.load(e.target.result, function(texture) {
+      texture.flipY = false; // Match Blender's UV orientation
+      applyMaterialToSelection(null, null, null, texture);
+      showNotification('Texture applied: ' + (file.name || 'Image'));
+    }, undefined, function(err) {
+      console.error('Error loading texture:', err);
+      alert('Failed to load texture.');
+    });
+  };
+  reader.readAsDataURL(file);
+}
+
+function resetMaterial() {
+  if (!currentSelection) return;
+  currentSelection.traverse(function(node) {
+    if (node.isMesh && node.userData.originalMaterial) {
+      node.material = node.userData.originalMaterial.clone();
+      node.material.needsUpdate = true;
+    }
+  });
+  showNotification('Material reset');
+}
+
+/* Material UI Controls */
+document.getElementById('materialColor').addEventListener('input', function(e) {
+  applyMaterialToSelection(new THREE.Color(e.target.value), null, null, null);
+});
+document.getElementById('roughnessSlider').addEventListener('input', function(e) {
+  document.getElementById('roughnessValue').textContent = e.target.value;
+  applyMaterialToSelection(null, parseFloat(e.target.value), null, null);
+});
+document.getElementById('metalnessSlider').addEventListener('input', function(e) {
+  document.getElementById('metalnessValue').textContent = e.target.value;
+  applyMaterialToSelection(null, null, parseFloat(e.target.value), null);
+});
+document.getElementById('textureInput').addEventListener('change', function(e) {
+  if (e.target.files && e.target.files[0]) {
+    applyTextureFromFile(e.target.files[0]);
+  }
+});
+document.getElementById('resetMaterialBtn').addEventListener('click', resetMaterial);
+
+/* =========================
+   Raycasting + Pointer helpers
+   ========================= */
+var raycaster = new THREE.Raycaster();
+var pointer = new THREE.Vector2();
+function getPointer(event){ var rect = renderer.domElement.getBoundingClientRect(); pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1; pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1; }
+
+/* =========================
+   MODIFIED: Light selection and transformation (instead of dragging)
+   ========================= */
+function setupLightForTransformation(sphereMesh, lightObj){ 
+  sphereMesh.userData.pointLight = lightObj; 
+  sphereMesh.userData.isLightSphere = true;
+  
+  // When light sphere is transformed, update the actual light position
+  var originalPosition = lightObj.position.clone();
+  
+  // Store reference to update light when sphere moves
+  sphereMesh.onBeforeRender = function() {
+    if (lightObj && sphereMesh.position.distanceTo(lightObj.position) > 0.001) {
+      lightObj.position.copy(sphereMesh.position);
+    }
+  };
+  
+  return sphereMesh;
+}
+
+// Apply to existing light
+lightSphere = setupLightForTransformation(lightSphere, pointLight);
+selectableObjects.push(lightSphere);
+
+/* =========================
+   Pointer interaction: select objects (including lights and cameras)
+   ========================= */
+renderer.domElement.addEventListener('pointerdown', function(e){ 
+  if (isPlaying || cameraModeActive) return; // Disable selection during playback or camera mode
+  getPointer(e); 
+  raycaster.setFromCamera(pointer, camera);
+  var hits = raycaster.intersectObjects(selectableObjects, true);
+  
+  if(hits.length === 0){ 
+    deselect(); 
+    return; 
+  }
+  
+  var hit = hits[0].object;
+  
+  // Handle camera selection - check if we hit any child of a camera group
+  var cameraGroup = null;
+  var obj = hit;
+  
+  // Traverse up the parent chain to find camera group
+  while (obj && obj !== scene) {
+    if (obj.userData && obj.userData.isCameraHelper) {
+      cameraGroup = obj;
+      break;
+    }
+    obj = obj.parent;
+  }
+  
+  if (cameraGroup) {
+    selectCameraObject(cameraGroup);
+    return;
+  }
+  
+  // Handle light sphere selection
+  if(hit.userData && hit.userData.isLightSphere){ 
+    selectLightSphere(hit); 
+    return; 
+  }
+  
+  if(hit.userData && hit.userData.bone){ 
+    var bone = hit.userData.bone; 
+    selectBone(bone); 
+    return; 
+  }
+  
+  if(hit.userData && hit.userData.emptyNode){ 
+    var emptyNode = hit.userData.emptyNode; 
+    selectEmpty(emptyNode); 
+    return; 
+  }
+  
+  var root = getSelectableRoot(hit);
+  if(!root) root = hit;
+  if(root === scene){ deselect(); return; }
+  selectRootObject(root);
+});
+
+/* =========================
+   Selection functions (UPDATED for lights and cameras)
+   ========================= */
+function selectLightSphere(sphere){ 
+  if(!sphere) return; 
+  currentSelection = sphere; 
+  transformControls.attach(sphere); 
+  originalTransform = { position: sphere.position.clone(), rotation: sphere.rotation.clone(), scale: sphere.scale.clone() }; 
+  createHighlightEdges(sphere); 
+}
+
+function selectBone(bone){ 
+  if(!bone) return; 
+  currentSelection = bone; 
+  transformControls.attach(bone); 
+  originalTransform = null;
+  removeHighlightLines(); 
+}
+
+function selectEmpty(node){ 
+  if(!node) return; 
+  currentSelection = node; 
+  transformControls.attach(node); 
+  originalTransform = { position: node.position.clone(), rotation: node.rotation.clone(), scale: node.scale.clone() }; 
+  createHighlightEdges(node); 
+}
+
+function selectRootObject(root){ 
+  if(!root) return; 
+  currentSelection = root; 
+  transformControls.attach(root); 
+  originalTransform = { position: root.position.clone(), rotation: root.rotation.clone(), scale: root.scale.clone() }; 
+  createHighlightEdges(root); 
+  root.traverse(function(node) {
+    if (node.isMesh && node.material && node.material.isMeshStandardMaterial) {
+      document.getElementById('materialColor').value = '#' + node.material.color.getHexString();
+      document.getElementById('roughnessSlider').value = node.material.roughness;
+      document.getElementById('roughnessValue').textContent = node.material.roughness;
+      document.getElementById('metalnessSlider').value = node.material.metalness;
+      document.getElementById('metalnessValue').textContent = node.material.metalness;
+    }
+  });
+}
+
+function deselect(){ 
+  currentSelection = null; 
+  originalTransform = null; 
+  transformControls.detach(); 
+  removeHighlightLines(); 
+}
+
+/* =========================
+   Helper: compute object's world-space center
+   ========================= */
+function getObjectWorldCenter(obj){ 
+  if(!obj) return new THREE.Vector3(); 
+  obj.updateWorldMatrix(true, true); 
+  var box = new THREE.Box3().setFromObject(obj); 
+  if(!box || box.isEmpty()){ 
+    return obj.getWorldPosition(new THREE.Vector3()); 
+  } 
+  var center = new THREE.Vector3(); 
+  box.getCenter(center); 
+  return center; 
+}
+
+/* =========================
+   Keyboard (G/R/S + Shift snap toggle + Shift+A menu)
+   ========================= */
+window.addEventListener('keydown', function(e){ 
+  if (isPlaying || cameraModeActive) return; // Disable transform controls during playback or camera mode
+  if(e.key.toLowerCase() === 'g'){ transformControls.setMode('translate'); } 
+  if(e.key.toLowerCase() === 'r'){ transformControls.setMode('rotate'); } 
+  if(e.key.toLowerCase() === 's'){ transformControls.setMode('scale'); } 
+  if(e.key === 'Shift'){ 
+    transformControls.setTranslationSnap(null); 
+    transformControls.setRotationSnap(null); 
+    transformControls.setScaleSnap(null); 
+  } 
+  if(e.key === 'A' && e.shiftKey){ 
+    e.preventDefault(); 
+    showAddMenu(lastPointerX || window.innerWidth/2, lastPointerY || window.innerHeight/2); 
+  } 
+});
+window.addEventListener('keyup', function(e){ 
+  if(e.key === 'Shift'){ 
+    transformControls.setTranslationSnap(snapEnabled ? snapStep : null); 
+    transformControls.setRotationSnap(snapEnabled ? THREE.Math.degToRad(15) : null); 
+    transformControls.setScaleSnap(snapEnabled ? snapStep : null); 
+  } 
+});
+var lastPointerX = null, lastPointerY = null; 
+window.addEventListener('mousemove', function(ev){ 
+  lastPointerX = ev.clientX; 
+  lastPointerY = ev.clientY; 
+});
+
+/* =========================
+   Snapping defaults
+   ========================= */
+var snapEnabled = true; 
+var snapStep = 0.1; 
+transformControls.setTranslationSnap(snapEnabled ? snapStep : null); 
+transformControls.setRotationSnap(snapEnabled ? THREE.Math.degToRad(15) : null); 
+transformControls.setScaleSnap(snapEnabled ? snapStep : null);
+
+/* =========================
+   Reset / Wireframe / Grid / Buttons
+   ========================= */
+var wireframeOn = false;
+function resetTransform(){ 
+  if(!currentSelection || !originalTransform) return; 
+  currentSelection.position.copy(originalTransform.position); 
+  currentSelection.rotation.copy(originalTransform.rotation); 
+  currentSelection.scale.copy(originalTransform.scale); 
+  // If it's a light sphere, update the actual light too
+  if (currentSelection.userData && currentSelection.userData.pointLight) {
+    currentSelection.userData.pointLight.position.copy(currentSelection.position);
+  }
+  // If it's a camera, update the camera too
+  if (currentSelection.userData && currentSelection.userData.isCameraHelper) {
+    for (var i = 0; i < cameras.length; i++) {
+      if (cameras[i].helper === currentSelection) {
+        cameras[i].camera.position.copy(currentSelection.position);
+        cameras[i].camera.rotation.copy(currentSelection.rotation);
+        break;
+      }
+    }
+  }
+  showNotification('Transform reset');
+}
+document.getElementById('resetBtn').onclick = () => { resetTransform(); };
+document.getElementById('toggleWireframeBtn').onclick = () => { 
+  if(!currentSelection) return; 
+  wireframeOn = !wireframeOn; 
+  currentSelection.traverse ? currentSelection.traverse((node) => { 
+    if(node.isMesh) node.material.wireframe = wireframeOn; 
+  }) : (currentSelection.material && (currentSelection.material.wireframe = wireframeOn)); 
+  showNotification('Wireframe: ' + (wireframeOn ? 'On' : 'Off'));
+};
+document.getElementById('toggleGridBtn').onclick = () => { 
+  gridHelper.visible = !gridHelper.visible; 
+  showNotification('Grid: ' + (gridHelper.visible ? 'On' : 'Off'));
+};
+
+/* Light color for main point light */
+document.getElementById('lightColor').addEventListener('input', (e) => { 
+  var col = new THREE.Color(e.target.value); 
+  pointLight.color = col; 
+  sMat.emissive = col; 
+  showNotification('Light color updated');
+});
+
+/* =========================
+   Lighting arrays for toggling
+   ========================= */
+var spotLights = []; 
+var areaLights = [];
+function addSpotLight(spotLight, sphere) { 
+  spotLights.push({ light: spotLight, helper: sphere }); 
+}
+function addAreaLight(areaLight, sphere) { 
+  areaLights.push({ light: areaLight, helper: sphere }); 
+}
+
+/* =========================
+   Spawn new objects (UPDATED for lights and cameras)
+   ========================= */
+function createMesh(geometry){ 
+  var mat = new THREE.MeshStandardMaterial({color:0x999999, roughness:0.6, metalness:0.2}); 
+  var mesh = new THREE.Mesh(geometry, mat); 
+  mesh.castShadow = true; 
+  mesh.receiveShadow = true; 
+  mesh.userData.originalMaterial = mat.clone(); 
+  return mesh; 
+}
+function spawnObject(type){ 
+  var obj = null; 
+  var spawnPos = new THREE.Vector3(); 
+  camera.getWorldDirection(spawnPos); 
+  spawnPos.multiplyScalar(2); 
+  spawnPos.add(camera.position); 
+  spawnPos.y = Math.max(spawnPos.y, -1);
+  switch(type){ 
+    case 'cube': obj = createMesh(new THREE.BoxBufferGeometry(1,1,1)); break; 
+    case 'cone': obj = createMesh(new THREE.ConeBufferGeometry(0.7, 1.5, 16)); break; 
+    case 'sphere': obj = createMesh(new THREE.SphereBufferGeometry(0.7, 24, 16)); break; 
+    case 'pointlight': 
+      var light = new THREE.PointLight(0xffffff, 1.5, 20, 2); 
+      light.position.copy(spawnPos); 
+      light.castShadow = true; 
+      scene.add(light); 
+      var glowMat = new THREE.MeshStandardMaterial({emissive:0xffffff, emissiveIntensity:1, metalness:1, roughness:0.2}); 
+      var glowSphere = new THREE.Mesh(sGeo, glowMat); 
+      glowSphere.position.copy(spawnPos); 
+      scene.add(glowSphere); 
+      glowSphere = setupLightForTransformation(glowSphere, light); 
+      selectableObjects.push(glowSphere); 
+      // Add bloom to new light
+      if (bloomEnabled) {
+        addBloomToLight(light, glowSphere);
+      }
+      // Apply shadow quality and bias to new light
+      light.shadow.mapSize.width = graphicsSettings.shadowMapResolutions[graphicsSettings.shadowQuality];
+      light.shadow.mapSize.height = graphicsSettings.shadowMapResolutions[graphicsSettings.shadowQuality];
+      light.shadow.bias = graphicsSettings.shadowBias;
+      light.shadow.normalBias = graphicsSettings.normalBias;
+      
+      // Select the light sphere
+      selectLightSphere(glowSphere); 
+      updateObjectCount();
+      showNotification('Point light added');
+      hideAddMenu(); 
+      return; 
+    case 'spotlight': 
+      var spotLight = new THREE.SpotLight(0x66aaff, 2, 20, Math.PI / 6, 0.5, 1); 
+      spotLight.position.copy(spawnPos); 
+      spotLight.castShadow = true; 
+      scene.add(spotLight); 
+      var targetObj = new THREE.Object3D(); 
+      targetObj.position.set(spawnPos.x, spawnPos.y - 1, spawnPos.z); 
+      scene.add(targetObj); 
+      spotLight.target = targetObj; 
+      var spotSphere = new THREE.Mesh(sGeo, spotLightSphereMat); 
+      spotSphere.position.copy(spawnPos); 
+      scene.add(spotSphere); 
+      spotSphere = setupLightForTransformation(spotSphere, spotLight); 
+      selectableObjects.push(spotSphere); 
+      addSpotLight(spotLight, spotSphere); 
+      // Add bloom to new spotlight
+      if (bloomEnabled) {
+        addBloomToLight(spotLight, spotSphere);
+      }
+      // Apply shadow quality and bias to new light
+      spotLight.shadow.mapSize.width = graphicsSettings.shadowMapResolutions[graphicsSettings.shadowQuality];
+      spotLight.shadow.mapSize.height = graphicsSettings.shadowMapResolutions[graphicsSettings.shadowQuality];
+      spotLight.shadow.bias = graphicsSettings.shadowBias;
+      spotLight.shadow.normalBias = graphicsSettings.normalBias;
+      
+      // Select the light sphere
+      selectLightSphere(spotSphere); 
+      updateObjectCount();
+      showNotification('Spot light added');
+      hideAddMenu(); 
+      return; 
+    case 'arealight': 
+      var areaLight = new THREE.RectAreaLight(0xff66cc, 3, 3, 2); 
+      areaLight.position.copy(spawnPos); 
+      areaLight.lookAt(spawnPos.x, spawnPos.y - 1, spawnPos.z); 
+      scene.add(areaLight); 
+      var areaSphere = new THREE.Mesh(sGeo, areaLightSphereMat); 
+      areaSphere.position.copy(spawnPos); 
+      scene.add(areaSphere); 
+      areaSphere = setupLightForTransformation(areaSphere, areaLight); 
+      selectableObjects.push(areaSphere); 
+      addAreaLight(areaLight, areaSphere); 
+      // Add bloom to new area light
+      if (bloomEnabled) {
+        addBloomToLight(areaLight, areaSphere);
+      }
+      // Area lights don't cast shadows in Three.js
+      // Select the light sphere
+      selectLightSphere(areaSphere); 
+      updateObjectCount();
+      showNotification('Area light added');
+      hideAddMenu(); 
+      return; 
+    case 'camera': 
+      createCameraObject();
+      hideAddMenu();
+      return;
+  }
+  if(obj){ 
+    obj.position.copy(spawnPos); 
+    scene.add(obj); 
+    selectableObjects.push(obj); 
+    selectRootObject(obj); 
+    updateObjectCount();
+    showNotification('Added: ' + type);
+    hideAddMenu(); 
+  }
+}
+document.querySelectorAll('#addMenu div').forEach(function(item){ 
+  item.addEventListener('click', function(){ 
+    spawnObject(this.getAttribute('data-type')); 
+  }); 
+});
+
+/* =========================
+   Toggle Spotlights & Area Lights visibility
+   ========================= */
+var spotlightsVisible = true; 
+var arealightsVisible = true;
+document.getElementById('toggleSpotlightsBtn').onclick = () => { 
+  spotlightsVisible = !spotlightsVisible; 
+  spotLights.forEach(({light, helper}) => { 
+    light.visible = spotlightsVisible; 
+    helper.visible = spotlightsVisible; 
+    // Also hide/show bloom sprites
+    bloomSprites.forEach(function(bloomData) {
+      if (bloomData.light === light && bloomData.sprite) {
+        bloomData.sprite.visible = spotlightsVisible;
+      }
+    });
+  }); 
+  showNotification('Spotlights: ' + (spotlightsVisible ? 'On' : 'Off'));
+};
+document.getElementById('toggleAreaLightsBtn').onclick = () => { 
+  arealightsVisible = !arealightsVisible; 
+  areaLights.forEach(({light, helper}) => { 
+    light.visible = arealightsVisible; 
+    helper.visible = arealightsVisible; 
+    // Also hide/show bloom sprites
+    bloomSprites.forEach(function(bloomData) {
+      if (bloomData.light === light && bloomData.sprite) {
+        bloomData.sprite.visible = arealightsVisible;
+      }
+    });
+  }); 
+  showNotification('Area lights: ' + (arealightsVisible ? 'On' : 'Off'));
+};
+
+/* =========================
+   Toggle skeleton & helper visibility UI
+   ========================= */
+var skeletonVisible = true; 
+var boneBallsVisible = true; 
+var emptyAxesVisible = true;
+document.getElementById('toggleSkeletonBtn').onclick = function(){ 
+  skeletonVisible = !skeletonVisible; 
+  skeletonHelpers.forEach(h => h.visible = skeletonVisible); 
+  showNotification('Skeleton helpers: ' + (skeletonVisible ? 'On' : 'Off'));
+};
+document.getElementById('toggleBoneBallsBtn').onclick = function(){ 
+  boneBallsVisible = !boneBallsVisible; 
+  boneHandleBalls.forEach(b => b.visible = boneBallsVisible); 
+  showNotification('Bone handles: ' + (boneBallsVisible ? 'On' : 'Off'));
+};
+document.getElementById('toggleEmptyAxesBtn').onclick = function(){ 
+  emptyAxesVisible = !emptyAxesVisible; 
+  emptyAxes.forEach(a => a.visible = emptyAxesVisible); 
+  showNotification('Empty axes: ' + (emptyAxesVisible ? 'On' : 'Off'));
+};
+
+/* =========================
+   Animation loop
+   ========================= */
+function animate(){ 
+  requestAnimationFrame(animate); 
+  var pulse = 1 + Math.sin(Date.now()*0.003)*0.07; 
+  pointLight.intensity = 2.2 * pulse; 
+  
+  // Update bloom sprites
+  if (bloomEnabled) {
+    updateBloomSprites();
+  }
+  
+  // Update camera viewport if enabled
+  if (cameraViewportEnabled && activeCameraIndex !== 0) {
+    updateCameraViewport();
+  }
+  
+  // Update light positions from their spheres (if selected and being transformed)
+  if (currentSelection && currentSelection.userData && currentSelection.userData.pointLight) {
+    var light = currentSelection.userData.pointLight;
+    if (light && currentSelection.position.distanceTo(light.position) > 0.001) {
+      light.position.copy(currentSelection.position);
+    }
+  }
+  
+  // Update camera positions from their helpers
+  if (currentSelection && currentSelection.userData && currentSelection.userData.isCameraHelper) {
+    for (var i = 0; i < cameras.length; i++) {
+      if (cameras[i].helper === currentSelection) {
+        if (currentSelection.position.distanceTo(cameras[i].camera.position) > 0.001) {
+          cameras[i].camera.position.copy(currentSelection.position);
+          cameras[i].camera.rotation.copy(currentSelection.rotation);
+        }
+        break;
+      }
+    }
+  }
+  
+  if (isPlaying) {
+    var elapsed = (Date.now() - animationStartTime) / 1000;
+    currentFrame = Math.floor(elapsed * fps) % (maxFrame + 1);
+    if (!loopAnimation && currentFrame >= maxFrame) {
+      isPlaying = false;
+      currentFrame = maxFrame;
+      document.getElementById('playPauseBtn').textContent = 'Play';
+      transformControls.enabled = true;
+    }
+    document.getElementById('frameSlider').value = currentFrame;
+    document.getElementById('currentFrameValue').textContent = currentFrame;
+    document.getElementById('frameInput').value = currentFrame;
+    updateObjectTransforms();
+  }
+  
+  // Update camera if in camera mode
+  if (cameraModeActive && activeCameraIndex < cameras.length) {
+    var activeCam = cameras[activeCameraIndex];
+    if (activeCam && activeCam.camera) {
+      // Update our view camera to match the selected camera
+      camera.position.copy(activeCam.camera.position);
+      camera.rotation.copy(activeCam.camera.rotation);
+      camera.fov = activeCam.camera.fov;
+      camera.aspect = activeCam.camera.aspect;
+      camera.near = activeCam.camera.near;
+      camera.far = activeCam.camera.far;
+      camera.updateProjectionMatrix();
+    }
+  }
+  
+  controls.update(); 
+  renderer.render(scene, camera); 
+}
+animate();
+
+/* =========================
+   SHIFT + A Add Menu
+   ========================= */
+var addMenu = document.getElementById('addMenu');
+function showAddMenu(x, y) { 
+  addMenu.style.left = Math.max(8, x) + 'px'; 
+  addMenu.style.top = Math.max(8, y) + 'px'; 
+  addMenu.style.display = 'block'; 
+  addMenu.setAttribute('aria-hidden', 'false'); 
+}
+function hideAddMenu() { 
+  addMenu.style.display = 'none'; 
+  addMenu.setAttribute('aria-hidden', 'true'); 
+}
+window.addEventListener('click', function(e) { 
+  if (!addMenu.contains(e.target)) hideAddMenu(); 
+});
+
+/* keep handle updated if sidebar toggled by K or other actions elsewhere */
+var observer = new MutationObserver(function(){ 
+  updateHandleSymbol(); 
+  updateHandlePosition(); 
+});
+observer.observe(sidebar, { attributes: true, attributeFilter: ['class'] });
+updateRendererSize(); 
+updateHandlePosition(); 
+updateHandleSymbol();
+
+// Initial object count and camera dropdown
+updateObjectCount();
+updateCameraDropdown();
+// Initial shadow quality display
+updateShadowQuality();
+updateShadowBias();
+</script>
+</body>
+</html>
