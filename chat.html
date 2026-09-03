@@ -190,17 +190,38 @@
   // =========================================================
   // PASTE YOUR FIREBASE CONFIG HERE
   // =========================================================
-  const firebaseConfig = {
-    apiKey: "AIzaSyAUlrcrPp7ngmLHmQffq7B6A0wcJ9s2Yl4",
-    authDomain: "jf0isjiofser.firebaseapp.com",
-    databaseURL: "https://jf0isjiofser-default-rtdb.firebaseio.com",
-    projectId: "jf0isjiofser",
-    messagingSenderId: "940625765565",
-    appId: "1:940625765565:web:cca0f18c08e362e4f883d4"
-  };
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.database();
+ // Import the functions you need from the SDKs you need
 
+import { initializeApp } from "firebase/app";
+
+import { getAnalytics } from "firebase/analytics";
+
+const firebaseConfig = {
+
+  apiKey: "AIzaSyCppI5zT5e6rGZ8YKN1xv77bR7Aw0qVXF4",
+
+  authDomain: "chalk-chat-4d72f.firebaseapp.com",
+
+  databaseURL: "https://chalk-chat-4d72f-default-rtdb.firebaseio.com",
+
+  projectId: "chalk-chat-4d72f",
+
+  storageBucket: "chalk-chat-4d72f.firebasestorage.app",
+
+  messagingSenderId: "200649440719",
+
+  appId: "1:200649440719:web:e1f3889c448fe34ad7a6ba",
+
+  measurementId: "G-CHRK1GMC5V"
+
+};
+
+
+// Initialize Firebase
+
+const app = initializeApp(firebaseConfig);
+
+const analytics = getAnalytics(app);
   // --- STATE ---
   let myUsername = '';
   let currentChannel = 'general';
