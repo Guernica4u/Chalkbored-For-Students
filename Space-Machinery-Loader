@@ -1,0 +1,9 @@
+<div id="game"></div>
+<script>
+  EJS_player = "#game";
+  EJS_gameUrl = "GBA/Space-Machinery";      // path to the ROM
+  EJS_core = "gba";                     // nes, snes, gba, n64, gb, gbc, psx, segaMD, etc.
+  EJS_pathtodata = "https://cdn.emulatorjs.org/stable/data/"; // or self-hosted
+  EJS_gameName = "Chalkbored - Studying Space Machinery";
+</script>
+<script src="https://cdn.emulatorjs.org/stable/data/loader.js"></script>
