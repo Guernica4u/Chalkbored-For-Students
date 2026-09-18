@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vault — ChalkBored</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0c0d10;
+    --panel: #131519;
+    --panel-hover: #171b1f;
+    --ink: #e8e8e6;
+    --muted: #6f7680;
+    --line: #23262c;
+    --accent: #6ee7a8;
+    --accent-dim: #2f6b4f;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100svh;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* faint scanlines */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 60;
+    background: repeating-linear-gradient(to bottom, rgba(255,255,255,0.018) 0 1px, transparent 1px 3px);
+  }
+
+  /* the page fades up out of black */
+  .curtain {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    background: #000;
+    pointer-events: none;
+    opacity: 1;
+    /* CSS drives the fade so the page is never stuck black if the script fails */
+    animation: lift 0.9s ease 0.05s forwards;
+  }
+
+  @keyframes lift { to { opacity: 0; } }
+
+  header, main, footer {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding-left: 1.75rem;
+    padding-right: 1.75rem;
+  }
+
+  header { padding-top: 2rem; }
+
+  .back-link {
+    display: inline-block;
+    font-size: 0.8rem;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    text-decoration: none;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 3px;
+    transition: color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+  }
+
+  .back-link:hover,
+  .back-link:focus-visible {
+    color: var(--accent);
+    border-color: var(--accent-dim);
+    transform: translateX(-3px);
+    outline: none;
+  }
+
+  main { padding-top: 5rem; padding-bottom: 10rem; }
+
+  .rule {
+    width: 48px;
+    height: 1px;
+    background: var(--accent);
+    margin-bottom: 2.25rem;
+    transform: scaleX(0);
+    transform-origin: left;
+    animation: draw 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.25s forwards;
+  }
+
+  @keyframes draw { to { transform: scaleX(1); } }
+
+  h1 {
+    font-weight: 700;
+    font-size: clamp(2.2rem, 7vw, 3.4rem);
+    letter-spacing: -0.02em;
+    line-height: 1.05;
+    margin: 0 0 3.5rem;
+  }
+
+  h1 .cursor {
+    display: inline-block;
+    width: 0.52em;
+    height: 0.88em;
+    margin-left: 0.12em;
+    background: var(--accent);
+    vertical-align: -0.06em;
+    animation: blink 1.1s steps(1) infinite;
+  }
+
+  @keyframes blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+
+  /* ---------------- collapsible groups ---------------- */
+
+  .group + .group { margin-top: 2.5rem; }
+
+  .group-head {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 0 0 0.9rem;
+    background: none;
+    border: none;
+    border-bottom: 1px solid var(--line);
+    color: var(--ink);
+    font: inherit;
+    font-size: 0.78rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    text-align: left;
+    cursor: pointer;
+    transition: color 0.2s ease, border-color 0.2s ease;
+  }
+
+  .group-head:hover,
+  .group-head:focus-visible { color: var(--accent); border-color: var(--accent-dim); outline: none; }
+
+  .chevron {
+    width: 9px;
+    height: 9px;
+    border-right: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    transform: rotate(45deg);
+    transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+    flex-shrink: 0;
+    margin-top: -3px;
+  }
+
+  .group.open .chevron { transform: rotate(-135deg) translate(-2px, -2px); }
+
+  .group-count {
+    margin-left: auto;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+  }
+
+  .group-body {
+    display: grid;
+    grid-template-rows: 0fr;
+    opacity: 0;
+    transition: grid-template-rows 0.45s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.3s ease;
+  }
+
+  .group.open .group-body { grid-template-rows: 1fr; opacity: 1; }
+
+  .group-clip { overflow: hidden; }
+
+  /* ---------------- games ---------------- */
+
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 1rem;
+    padding-top: 1.5rem;
+  }
+
+  .card-wrap { position: relative; }
+  .card-wrap.is-open { z-index: 30; }
+
+  .card {
+    --i: 0;
+    display: block;
+    width: 100%;
+    padding: 0;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    font: inherit;
+    text-align: left;
+    text-decoration: none;
+    cursor: pointer;
+    overflow: hidden;
+    transition: border-color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease, background-color 0.25s ease;
+    opacity: 0;
+    animation: rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation-delay: calc(var(--i) * 60ms);
+  }
+
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .card:hover,
+  .card:focus-visible,
+  .card-wrap.is-open .card {
+    border-color: var(--accent-dim);
+    background: var(--panel-hover);
+    transform: translateY(-3px);
+    box-shadow: 0 10px 28px rgba(0,0,0,0.45);
+    outline: none;
+  }
+
+  .thumb {
+    display: block;
+    position: relative;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    background: linear-gradient(135deg, #1b2027, #10131a 60%, #161b22);
+    border-bottom: 1px solid var(--line);
+  }
+
+  /* placeholder shown until a preview image is dropped in */
+  .thumb .mono {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    font-size: 1.6rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: #2c333c;
+    transition: color 0.3s ease;
+  }
+
+  .card:hover .thumb .mono { color: var(--accent-dim); }
+
+  .thumb::after {
+    /* sheen that sweeps across on hover */
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(105deg, transparent 35%, rgba(110,231,168,0.10) 50%, transparent 65%);
+    transform: translateX(-120%);
+    transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .card:hover .thumb::after { transform: translateX(120%); }
+
+  .thumb img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transform: scale(1.01);
+    transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1), filter 0.3s ease;
+    filter: saturate(0.85) brightness(0.9);
+  }
+
+  .card:hover .thumb img,
+  .card:focus-visible .thumb img {
+    transform: scale(1.06);
+    filter: saturate(1) brightness(1);
+  }
+
+  .card-body {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.85rem 1rem 0.95rem;
+  }
+
+  .card-name {
+    font-size: 0.95rem;
+    font-weight: 500;
+    transition: color 0.25s ease;
+  }
+
+  .card:hover .card-name,
+  .card:focus-visible .card-name,
+  .card-wrap.is-open .card-name { color: var(--accent); }
+
+  .card-arrow {
+    color: var(--muted);
+    font-size: 0.8rem;
+    transition: transform 0.25s ease, color 0.25s ease;
+  }
+
+  .card:hover .card-arrow { color: var(--accent); transform: translateX(3px); }
+  .card-wrap.is-open .card-arrow { transform: rotate(90deg); color: var(--accent); }
+
+  .card.soon { cursor: default; opacity: 0.55; }
+  .card.soon:hover { transform: none; border-color: var(--line); background: var(--panel); box-shadow: none; }
+  .card.soon:hover .card-name { color: var(--ink); }
+  .card.soon .thumb { background: #101215; }
+  .card.soon:hover .thumb::after { transform: translateX(-120%); }
+
+  /* ---------------- tools ---------------- */
+
+  .rows {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    padding-top: 1.5rem;
+  }
+
+  .row {
+    --i: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    width: 100%;
+    padding: 0.85rem 1.1rem;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    font: inherit;
+    font-size: 0.92rem;
+    text-align: left;
+    text-decoration: none;
+    cursor: pointer;
+    transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.2s ease, color 0.2s ease;
+  }
+
+  .row:hover,
+  .row:focus-visible,
+  .card-wrap.is-open .row {
+    border-color: var(--accent-dim);
+    background: var(--panel-hover);
+    color: var(--accent);
+    transform: translateX(4px);
+    outline: none;
+  }
+
+  .row .card-arrow { transition: transform 0.25s ease, color 0.25s ease; }
+  .row:hover .card-arrow { color: var(--accent); transform: translateX(3px); }
+  .card-wrap.is-open .row .card-arrow { transform: rotate(90deg); }
+
+  .row.soon { cursor: default; opacity: 0.55; }
+  .row.soon:hover { transform: none; border-color: var(--line); background: var(--panel); color: var(--ink); }
+
+  /* ---------------- open-in menu ---------------- */
+
+  .tab-menu {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    z-index: 20;
+    background: #0d0f12;
+    border: 1px solid var(--accent-dim);
+    box-shadow: 0 16px 40px rgba(0,0,0,0.7);
+  }
+
+  .tab-menu.open { display: block; animation: drawer 0.2s ease-out; }
+
+  @keyframes drawer { from { opacity: 0; transform: translateY(-6px); } }
+
+  .tab-menu button {
+    display: block;
+    width: 100%;
+    padding: 0.6rem 0.9rem;
+    background: none;
+    border: none;
+    border-top: 1px solid var(--line);
+    color: var(--muted);
+    font: inherit;
+    font-size: 0.78rem;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+  }
+
+  .tab-menu button:first-child { border-top: none; }
+  .tab-menu button::before { content: '  '; white-space: pre; }
+
+  .tab-menu button:hover,
+  .tab-menu button:focus-visible { background: #12161a; color: var(--accent); outline: none; }
+  .tab-menu button:hover::before,
+  .tab-menu button:focus-visible::before { content: '> '; }
+
+  footer {
+    padding-top: 2rem;
+    padding-bottom: 3rem;
+    border-top: 1px solid var(--line);
+    font-size: 0.78rem;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-delay: 0s !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+</style>
+</head>
+<body>
+
+  <div class="curtain" id="curtain" aria-hidden="true"></div>
+
+  <header>
+    <a class="back-link" href="index.html">&larr; back</a>
+  </header>
+
+  <main>
+    <div class="rule"></div>
+    <h1>Vault<span class="cursor" aria-hidden="true"></span></h1>
+
+    <section class="group open" id="group-games">
+      <button class="group-head" type="button" aria-expanded="true" aria-controls="games">
+        <span class="chevron" aria-hidden="true"></span>
+        <span>Games</span>
+        <span class="group-count" id="count-games"></span>
+      </button>
+      <div class="group-body" id="games-body">
+        <div class="group-clip">
+          <div class="cards" id="games"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="group" id="group-tools">
+      <button class="group-head" type="button" aria-expanded="false" aria-controls="tools">
+        <span class="chevron" aria-hidden="true"></span>
+        <span>Tools</span>
+        <span class="group-count" id="count-tools"></span>
+      </button>
+      <div class="group-body" id="tools-body">
+        <div class="group-clip">
+          <div class="rows" id="tools"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    ChalkBored &middot; built for students, kept free
+  </footer>
+
+  <script>
+    // ---- What's in the vault. `img` is optional: drop a screenshot in previews/ ----
+    const VAULT = {
+      games: [
+        { name: 'Learn to Fly 3', path: 'AeroDynamics-Loader.html',                 img: 'previews/learn-to-fly-3.png' },
+        { name: 'BTD4',           path: 'Bloons%20Math%20Loader.html',              img: 'previews/btd4.png' },
+        { name: 'Escape Roads',   path: 'Car maintenance/index.html',               img: 'previews/escape-roads.png' },
+        { name: 'Final Earth 2',  path: 'Earth and our Future/Earth/index.html',    img: 'previews/final-earth-2.png' },
+      ],
+      tools: [
+        { name: 'SeaOS',          path: 'SEA-OS/index.html' },
+      ],
+    };
+    const SLOTS = 10;
+
+    // Monochrome Chrome logo, like the icon on Chrome's own New Tab page
+    const CHROME_MONO_ICON = 'data:image/svg+xml,' + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">' +
+        '<defs><clipPath id="c"><circle cx="24" cy="24" r="22"/></clipPath></defs>' +
+        '<circle cx="24" cy="24" r="22" fill="#80868b"/>' +
+        '<g clip-path="url(#c)" stroke="#fff" stroke-width="2.6" stroke-linecap="round">' +
+          '<line x1="24" y1="14" x2="48" y2="14"/>' +
+          '<line x1="32.66" y1="29" x2="20.66" y2="49.8"/>' +
+          '<line x1="15.34" y1="29" x2="3.34" y2="8.2"/>' +
+        '</g>' +
+        '<circle cx="24" cy="24" r="10.5" fill="#fff"/>' +
+        '<circle cx="24" cy="24" r="8" fill="#80868b"/>' +
+      '</svg>'
+    );
+
+    const CLOAKS = {
+      cloak:   { title: 'New Tab', icon: CHROME_MONO_ICON },
+      google:  { title: 'Google',  icon: 'https://www.google.com/favicon.ico' },
+      neutral: { title: 'Notes',   icon: null }
+    };
+
+    const OPEN_MODES = [
+      ['cloak',   'Cloak (about:blank)'],
+      ['google',  'Google cloak'],
+      ['normal',  'Normal tab'],
+      ['neutral', 'Neutral tab'],
+    ];
+
+    function openTab(url, mode) {
+      // Resolve against this page so relative paths still work inside the about:blank window
+      const fullUrl = new URL(url, window.location.href).href;
+
+      if (mode === 'normal') {
+        window.open(fullUrl, '_blank');
+        return;
+      }
+
+      const disguise = CLOAKS[mode] || CLOAKS.cloak;
+      const title = disguise.title;
+      const win = window.open('about:blank', '_blank');
+      if (!win) return;
+
+      const doc = win.document;
+      doc.title = title;
+      doc.body.style.margin = '0';
+
+      if (disguise.icon) {
+        const icon = doc.createElement('link');
+        icon.rel = 'icon';
+        icon.href = disguise.icon;
+        doc.head.appendChild(icon);
+      }
+
+      const iframe = doc.createElement('iframe');
+      iframe.src = fullUrl;
+      iframe.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;border:none;';
+      iframe.setAttribute('allow', 'fullscreen; autoplay; clipboard-read; clipboard-write');
+      iframe.setAttribute('allowfullscreen', '');
+      doc.body.appendChild(iframe);
+
+      // Some browsers reset the title once the blank page settles, so set it again
+      setTimeout(() => { doc.title = title; }, 100);
+      win.focus();
+    }
+
+    function closeAllMenus(except) {
+      document.querySelectorAll('.card-wrap.is-open').forEach((w) => {
+        if (w !== except) {
+          w.classList.remove('is-open');
+          w.querySelector('.tab-menu').classList.remove('open');
+        }
+      });
+    }
+
+    function initials(name) {
+      return name.replace(/[^A-Za-z0-9 ]/g, '').split(' ').filter(Boolean).slice(0, 2)
+        .map((w) => w[0].toUpperCase()).join('');
+    }
+
+    function buildMenu(item) {
+      const menu = document.createElement('div');
+      menu.className = 'tab-menu';
+      OPEN_MODES.forEach(([mode, label]) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = label;
+        b.addEventListener('click', () => { openTab(item.path, mode); closeAllMenus(); });
+        menu.appendChild(b);
+      });
+      return menu;
+    }
+
+    function wire(wrap, trigger, menu) {
+      trigger.addEventListener('click', () => {
+        const opening = !wrap.classList.contains('is-open');
+        closeAllMenus(wrap);
+        wrap.classList.toggle('is-open', opening);
+        menu.classList.toggle('open', opening);
+      });
+    }
+
+    function buildGames() {
+      const grid = document.getElementById('games');
+      const items = VAULT.games;
+
+      for (let i = 0; i < SLOTS; i++) {
+        const item = items[i];
+
+        if (!item) {
+          const soon = document.createElement('a');
+          soon.className = 'card soon';
+          soon.href = '#';
+          soon.style.setProperty('--i', i);
+          soon.innerHTML =
+            '<span class="thumb"><span class="mono">?</span></span>' +
+            '<span class="card-body"><span class="card-name">Coming soon</span></span>';
+          grid.appendChild(soon);
+          continue;
+        }
+
+        const wrap = document.createElement('div');
+        wrap.className = 'card-wrap';
+
+        const card = document.createElement('button');
+        card.className = 'card';
+        card.type = 'button';
+        card.style.setProperty('--i', i);
+        card.innerHTML =
+          '<span class="thumb"><span class="mono"></span></span>' +
+          '<span class="card-body"><span class="card-name"></span><span class="card-arrow">&rsaquo;</span></span>';
+        card.querySelector('.mono').textContent = initials(item.name);
+        card.querySelector('.card-name').textContent = item.name;
+
+        if (item.img) {
+          const img = new Image();
+          img.alt = '';
+          img.loading = 'lazy';
+          // only shows once it actually loads, so a missing file leaves the placeholder
+          img.addEventListener('error', () => img.remove());
+          img.src = item.img;
+          card.querySelector('.thumb').appendChild(img);
+        }
+
+        const menu = buildMenu(item);
+        wire(wrap, card, menu);
+        wrap.append(card, menu);
+        grid.appendChild(wrap);
+      }
+
+      document.getElementById('count-games').textContent = items.length + ' / ' + SLOTS;
+    }
+
+    function buildTools() {
+      const list = document.getElementById('tools');
+      const items = VAULT.tools;
+
+      for (let i = 0; i < SLOTS; i++) {
+        const item = items[i];
+
+        if (!item) {
+          const soon = document.createElement('a');
+          soon.className = 'row soon';
+          soon.href = '#';
+          soon.style.setProperty('--i', i);
+          soon.innerHTML = '<span class="card-name">Coming soon</span>';
+          list.appendChild(soon);
+          continue;
+        }
+
+        const wrap = document.createElement('div');
+        wrap.className = 'card-wrap';
+
+        const row = document.createElement('button');
+        row.className = 'row';
+        row.type = 'button';
+        row.style.setProperty('--i', i);
+        row.innerHTML = '<span class="card-name"></span><span class="card-arrow">&rsaquo;</span>';
+        row.querySelector('.card-name').textContent = item.name;
+
+        const menu = buildMenu(item);
+        wire(wrap, row, menu);
+        wrap.append(row, menu);
+        list.appendChild(wrap);
+      }
+
+      document.getElementById('count-tools').textContent = items.length + ' / ' + SLOTS;
+    }
+
+    buildGames();
+    buildTools();
+
+    // ---- collapsing sections (Tools starts closed) ----
+    document.querySelectorAll('.group').forEach((group) => {
+      const head = group.querySelector('.group-head');
+      head.addEventListener('click', () => {
+        const open = group.classList.toggle('open');
+        head.setAttribute('aria-expanded', String(open));
+        if (!open) closeAllMenus();
+      });
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.card-wrap')) closeAllMenus();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeAllMenus();
+    });
+
+    // ---- fade up out of black ----
+    const curtain = document.getElementById('curtain');
+    setTimeout(() => curtain.remove(), 1200);
+  </script>
+</body>
+</html>
