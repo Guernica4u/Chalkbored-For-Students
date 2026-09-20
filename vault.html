@@ -58,22 +58,30 @@
 
   @keyframes lift { to { opacity: 0; } }
 
-  .shell {
-    display: grid;
-    grid-template-columns: 232px 1fr;
-    height: 100%;
-  }
+  .shell { height: 100%; }
 
   /* ---------------- sidebar ---------------- */
 
   .rail {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 232px;
+    z-index: 70;
     display: flex;
     flex-direction: column;
     background: var(--rail);
     border-right: 1px solid var(--line);
     padding: 1.75rem 1rem 1.25rem;
     overflow-y: auto;
+    transition:
+      transform 0.34s cubic-bezier(0.22, 1, 0.36, 1),
+      width 0.34s cubic-bezier(0.22, 1, 0.36, 1),
+      padding 0.34s ease;
   }
+
+  .main { height: 100%; margin-left: 232px; transition: margin-left 0.34s cubic-bezier(0.22, 1, 0.36, 1); }
 
   .brand {
     font-size: 0.95rem;
@@ -126,6 +134,8 @@
     from { opacity: 0; transform: translateX(-10px); }
     to   { opacity: 1; transform: translateX(0); }
   }
+
+  .nav-btn[hidden] { display: none; }
 
   .nav-btn:hover,
   .nav-btn:focus-visible {
@@ -199,6 +209,7 @@
     align-items: flex-end;
     justify-content: space-between;
     gap: 1.5rem;
+    min-width: 0;
     padding: 2.5rem 2.25rem 1.5rem;
     border-bottom: 1px solid var(--line);
   }
@@ -849,6 +860,440 @@
 
   .quit:hover, .quit:focus-visible { color: var(--accent); border-color: var(--accent-dim); transform: translateX(-2px); outline: none; }
 
+  /* ---------------- sidebar collapse ---------------- */
+
+  .rail-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  .rail-toggle {
+    flex-shrink: 0;
+    width: 26px;
+    height: 26px;
+    display: grid;
+    place-items: center;
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--muted);
+    cursor: pointer;
+    transition: color 0.2s ease;
+  }
+
+  .rail-toggle:hover, .rail-toggle:focus-visible { color: var(--accent); outline: none; }
+
+  .rail-toggle span {
+    width: 7px;
+    height: 7px;
+    border-left: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    transform: rotate(45deg) translate(1px, -1px);
+    transition: transform 0.3s ease;
+  }
+
+  body.rail-collapsed .rail-toggle span { transform: rotate(-135deg) translate(1px, -1px); }
+
+  .brand-mark { display: none; }
+
+  /* collapsed: the rail slides away entirely and comes back when the mouse
+     reaches the left edge (or when something in it has focus) */
+  /* collapsed: it narrows and slides off, and the page takes the whole width */
+  body.rail-collapsed .main { margin-left: 0; }
+
+  body.rail-collapsed .rail {
+    width: 64px;
+    transform: translateX(-100%);
+    box-shadow: 8px 0 28px rgba(0,0,0,0.5);
+  }
+
+  /* back only while the mouse is on the edge or the rail itself */
+  body.rail-collapsed .edge:hover + .rail,
+  body.rail-collapsed .rail:hover,
+  body.rail-collapsed .rail:focus-within { transform: translateX(0); }
+
+  .edge { display: none; }
+
+  body.rail-collapsed .edge {
+    display: block;
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 16px;
+    z-index: 69;
+  }
+
+  body.rail-collapsed .rail { padding-left: 0.6rem; padding-right: 0.6rem; align-items: center; }
+  body.rail-collapsed .rail-top { justify-content: center; }
+  body.rail-collapsed .brand .full,
+  body.rail-collapsed .brand-sub,
+  body.rail-collapsed .nav-btn span:not(.brand-mark),
+  body.rail-collapsed .back-link .label { display: none; }
+  body.rail-collapsed .brand { display: none; }
+  body.rail-collapsed .nav-btn { justify-content: center; padding: 0.7rem 0; border-left: none; }
+  body.rail-collapsed .nav-btn.active { background: none; }
+  body.rail-collapsed .back-link { padding-left: 0; text-align: center; }
+
+  /* ---------------- topbar: search + gear ---------------- */
+
+  .topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-shrink: 0;
+  }
+
+  .search-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  .search-btn {
+    width: 34px;
+    height: 34px;
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    color: var(--muted);
+    cursor: pointer;
+    transition: color 0.2s ease, border-color 0.2s ease;
+  }
+
+  .search-btn:hover, .search-btn:focus-visible { color: var(--accent); border-color: var(--accent-dim); outline: none; }
+  .search-wrap.open .search-btn { color: var(--accent); border-color: var(--accent-dim); border-right: none; }
+  .search-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; }
+
+  .search {
+    flex: 0 0 auto;
+    width: 0;
+    padding: 0.55rem 0;
+    background: var(--panel);
+    border: 1px solid transparent;
+    color: var(--ink);
+    font: inherit;
+    font-size: 0.8rem;
+    outline: none;
+    opacity: 0;
+    pointer-events: none;
+    transition: width 0.28s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.2s ease, padding 0.28s ease;
+  }
+
+  .search-wrap.open .search {
+    width: clamp(150px, 20vw, 260px);
+    padding: 0.55rem 0.8rem;
+    border-color: var(--accent-dim);
+    border-left: none;
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .search::placeholder { color: #4a5058; }
+
+  .results {
+    display: none;
+    position: absolute;
+    top: calc(100% + 5px);
+    right: 0;
+    width: min(380px, 80vw);
+    max-height: 60vh;
+    overflow-y: auto;
+    z-index: 50;
+    background: #0d0f12;
+    border: 1px solid var(--accent-dim);
+    box-shadow: 0 18px 44px rgba(0,0,0,0.7);
+  }
+
+  .results.on { display: block; animation: drawer 0.18s ease-out; }
+
+  .res-group {
+    padding: 0.5rem 0.85rem 0.3rem;
+    font-size: 0.62rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent-dim);
+    border-top: 1px solid var(--line);
+  }
+
+  .res-group:first-child { border-top: none; }
+
+  .res-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    width: 100%;
+    padding: 0.55rem 0.85rem;
+    background: none;
+    border: none;
+    color: var(--ink);
+    font: inherit;
+    font-size: 0.82rem;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+  }
+
+  .res-item:hover, .res-item:focus-visible { background: #12161a; color: var(--accent); outline: none; }
+  .res-item .res-where { font-size: 0.66rem; color: var(--muted); }
+  .res-empty { padding: 0.9rem 0.85rem; font-size: 0.78rem; color: var(--muted); }
+
+  .gear {
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    color: var(--muted);
+    cursor: pointer;
+    transition: color 0.2s ease, border-color 0.2s ease;
+  }
+
+  .gear:hover, .gear:focus-visible { color: var(--accent); border-color: var(--accent-dim); outline: none; }
+  .gear.active { color: var(--accent); border-color: var(--accent-dim); }
+  .gear svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 1.4; stroke-linecap: round; }
+
+  /* ---------------- home ---------------- */
+
+  .home-hero {
+    padding: 2rem 2rem 2.25rem;
+    border: 1px solid var(--line);
+    background: linear-gradient(150deg, #12181c 0%, #0f1215 60%);
+    margin-bottom: 2.5rem;
+  }
+
+  .home-eyebrow {
+    margin: 0 0 0.6rem;
+    font-size: 0.66rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  .home-title {
+    margin: 0 0 0.6rem;
+    font-size: clamp(1.4rem, 3vw, 2rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  .home-sub { margin: 0; font-size: 0.85rem; line-height: 1.7; color: var(--muted); max-width: 56ch; }
+
+  .home-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-top: 1.5rem;
+  }
+
+  .chat-live { font-size: 0.72rem; color: var(--muted); }
+  .chat-live b { color: var(--accent); font-weight: 500; }
+
+  .home-label {
+    margin: 0 0 1rem;
+    font-size: 0.7rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .home-label + * { margin-bottom: 2.5rem; }
+
+  .quick {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 0.8rem;
+  }
+
+  .tile {
+    --i: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 1.1rem 1rem;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    font: inherit;
+    font-size: 0.9rem;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color 0.2s ease, transform 0.2s ease, color 0.2s ease, background-color 0.2s ease;
+    opacity: 0;
+    animation: rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation-delay: calc(var(--i) * 60ms);
+  }
+
+  .tile:hover, .tile:focus-visible {
+    border-color: var(--accent-dim);
+    background: var(--panel-hover);
+    color: var(--accent);
+    transform: translateY(-3px);
+    outline: none;
+  }
+
+  .tile svg { width: 16px; height: 16px; flex-shrink: 0; stroke: currentColor; fill: none; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+  .tile .tile-count { margin-left: auto; font-size: 0.7rem; color: var(--muted); }
+
+  .recents { display: flex; flex-direction: column; gap: 0.5rem; max-width: 620px; }
+
+  .rec {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.7rem 1rem;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    font: inherit;
+    font-size: 0.85rem;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color 0.2s ease, color 0.2s ease, transform 0.2s ease, background-color 0.2s ease;
+  }
+
+  .rec:hover, .rec:focus-visible {
+    border-color: var(--accent-dim);
+    background: var(--panel-hover);
+    color: var(--accent);
+    transform: translateX(4px);
+    outline: none;
+  }
+
+  .rec .rec-app { font-size: 0.66rem; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; }
+  .home-empty { font-size: 0.78rem; color: #4a5058; }
+
+  /* ---------------- movie night ---------------- */
+
+  body.layout-movie .home-hero {
+    min-height: 280px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 3rem 2.5rem 2.5rem;
+    background:
+      radial-gradient(ellipse at 15% 110%, rgba(110,231,168,0.14), transparent 60%),
+      linear-gradient(160deg, #16201c 0%, #0b0d10 70%);
+    border: none;
+    box-shadow: inset 0 -80px 80px -60px #0c0d10;
+  }
+
+  body.layout-movie .home-title { font-size: clamp(1.9rem, 5vw, 3rem); }
+
+  body.layout-movie .quick,
+  body.layout-movie .recents,
+  body.layout-movie .cards,
+  body.layout-movie .systems {
+    display: flex;
+    flex-wrap: nowrap;
+    max-width: none;
+    overflow-x: auto;
+    gap: 1rem;
+    padding-bottom: 0.75rem;
+    scroll-snap-type: x proximity;
+  }
+
+  body.layout-movie .quick .tile,
+  body.layout-movie .recents .rec { min-width: 220px; scroll-snap-align: start; }
+  body.layout-movie .cards .card,
+  body.layout-movie .card-wrap { min-width: 270px; scroll-snap-align: start; }
+  body.layout-movie .systems .system-card { min-width: 320px; }
+
+  body.layout-movie .cards .card:hover { transform: translateY(-3px) scale(1.02); }
+
+  body.layout-movie .panel-lead,
+  body.layout-movie .home-label {
+    font-size: 0.95rem;
+    letter-spacing: 0.02em;
+    text-transform: none;
+    color: var(--ink);
+    font-weight: 500;
+  }
+
+  body.layout-movie .panel-lead::before { content: ''; }
+
+  body.layout-movie ::-webkit-scrollbar { height: 8px; }
+  body.layout-movie ::-webkit-scrollbar-thumb { background: var(--line); }
+
+  /* ---------------- settings extras ---------------- */
+
+  .setting + .setting { margin-top: 0.8rem; }
+
+  .setting-group {
+    margin-top: 2.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--line);
+    max-width: 620px;
+  }
+
+  .setting-group h2 {
+    margin: 0 0 0.35rem;
+    font-size: 0.72rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  .setting-group > p {
+    margin: 0 0 1.25rem;
+    font-size: 0.74rem;
+    line-height: 1.7;
+    color: var(--muted);
+  }
+
+  .switch {
+    flex-shrink: 0;
+    position: relative;
+    width: 44px;
+    height: 24px;
+    padding: 0;
+    background: #0d0f12;
+    border: 1px solid var(--line);
+    cursor: pointer;
+    transition: border-color 0.2s ease, background-color 0.2s ease;
+  }
+
+  .switch::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 16px;
+    height: 16px;
+    background: var(--muted);
+    transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.25s ease;
+  }
+
+  .switch[aria-checked="true"] { border-color: var(--accent-dim); background: #10211a; }
+  .switch[aria-checked="true"]::after { transform: translateX(20px); background: var(--accent); }
+
+  .choice { display: flex; gap: 0.5rem; flex-shrink: 0; }
+
+  .choice button {
+    padding: 0.5rem 0.9rem;
+    background: #0d0f12;
+    border: 1px solid var(--line);
+    color: var(--muted);
+    font: inherit;
+    font-size: 0.76rem;
+    cursor: pointer;
+    transition: color 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
+  }
+
+  .choice button:hover { color: var(--ink); }
+  .choice button.on { color: var(--accent); border-color: var(--accent-dim); background: #10211a; }
+
+  .ver { color: var(--accent-dim); }
+
   footer {
     padding: 1rem 2.25rem;
     border-top: 1px solid var(--line);
@@ -859,8 +1304,18 @@
 
   @media (max-width: 760px) {
     body { overflow: auto; }
-    .shell { grid-template-columns: 1fr; height: auto; }
-    .rail { border-right: none; border-bottom: 1px solid var(--line); padding-bottom: 1rem; }
+    .shell { height: auto; }
+    .main, body.rail-collapsed .main { margin-left: 0; }
+    .rail, body.rail-collapsed .rail {
+      position: static;
+      width: auto;
+      transform: none;
+      border-right: none;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 1rem;
+      box-shadow: none;
+    }
+    body.rail-collapsed .edge { display: none; }
     .nav { flex-direction: row; flex-wrap: wrap; }
     .nav-btn { width: auto; border-left: none; border-bottom: 2px solid transparent; }
     .nav-btn.active { border-left-color: transparent; border-bottom-color: var(--accent); }
@@ -882,39 +1337,42 @@
   <div class="curtain" id="curtain" aria-hidden="true"></div>
 
   <div class="shell">
+    <div class="edge" id="edge" aria-hidden="true"></div>
     <nav class="rail">
-      <p class="brand">Chalk<span class="dim">Bored</span></p>
+      <div class="rail-top">
+        <p class="brand"><span class="full">Chalk<span class="dim">Bored</span></span><span class="brand-mark">C</span></p>
+        <button class="rail-toggle" id="rail-toggle" type="button" aria-label="Collapse sidebar" title="Collapse sidebar"><span></span></button>
+      </div>
       <p class="brand-sub">Vault</p>
 
       <div class="nav">
-        <button class="nav-btn active" type="button" data-panel="games" style="--i:0">
+        <button class="nav-btn" type="button" data-panel="home" id="nav-home" title="Home" hidden style="--i:0">
+          <svg class="nav-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 7.2 8 2.5l5.5 4.7V13a.8.8 0 0 1-.8.8H3.3a.8.8 0 0 1-.8-.8z"/><path d="M6.4 13.8V9.2h3.2v4.6"/></svg>
+          <span>Home</span>
+        </button>
+        <button class="nav-btn active" type="button" data-panel="games" title="Games" style="--i:1">
           <svg class="nav-icon" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="4.5" width="13" height="8" rx="2.5"/><path d="M5 7v3M3.5 8.5h3M10.5 8.5h.01M12.5 7.5h.01"/></svg>
           <span>Games</span>
           <span class="tally" id="tally-games"></span>
         </button>
-        <button class="nav-btn" type="button" data-panel="tools" style="--i:1">
+        <button class="nav-btn" type="button" data-panel="tools" title="Tools" style="--i:2">
           <svg class="nav-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M10.5 1.8a3.6 3.6 0 0 0-4.3 4.6L1.8 10.8a1.5 1.5 0 0 0 2.1 2.1l4.4-4.4a3.6 3.6 0 0 0 4.6-4.3L11 5.9 9.4 5.6 9.1 4z"/></svg>
           <span>Tools</span>
           <span class="tally" id="tally-tools"></span>
         </button>
-        <button class="nav-btn" type="button" data-panel="console" style="--i:2">
+        <button class="nav-btn" type="button" data-panel="console" title="Console" style="--i:3">
           <svg class="nav-icon" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="9.5" rx="1.5"/><path d="M5.5 14.2h5M8 12v2.2M4.2 5.6v2.4M3 6.8h2.4M10.6 6.4h.01M12 7.8h.01"/></svg>
           <span>Console</span>
           <span class="tally" id="tally-console"></span>
         </button>
-        <button class="nav-btn" type="button" data-panel="chat" style="--i:3">
+        <button class="nav-btn" type="button" data-panel="chat" title="Chat" style="--i:4">
           <svg class="nav-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3.5h12v8H6.5L3 14.2V11.5H2z"/></svg>
           <span>Chat</span>
-        </button>
-        <button class="nav-btn" type="button" data-panel="settings" style="--i:4">
-          <svg class="nav-icon" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="2.2"/><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M12.6 3.4l-1.4 1.4M4.8 11.2l-1.4 1.4"/></svg>
-          <span>Settings</span>
         </button>
       </div>
 
       <div class="rail-foot">
-        <a class="back-link" href="index.html">&larr; back</a>
-        <span class="rail-note" id="panic-note"></span>
+        <a class="back-link" href="index.html" title="Back to ChalkBored">&larr;<span class="label"> back</span></a>
       </div>
     </nav>
 
@@ -924,9 +1382,39 @@
           <div class="rule"></div>
           <h1>ChalkBored <span class="sep">&mdash;</span> Vault<span class="cursor" aria-hidden="true"></span></h1>
         </div>
+        <div class="topbar-right">
+          <div class="search-wrap" id="search-wrap">
+            <button class="search-btn" id="search-btn" type="button" aria-label="Search" title="Search">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.6"/><path d="M10.4 10.4 14 14"/></svg>
+            </button>
+            <input class="search" id="search" type="search" placeholder="Search apps" autocomplete="off" spellcheck="false">
+            <div class="results" id="results"></div>
+          </div>
+          <button class="gear" id="gear" type="button" aria-label="Settings" title="Settings">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 4.5h6M11 4.5h3M2 11.5h3M8 11.5h6"/><circle cx="9.5" cy="4.5" r="1.9"/><circle cx="6.5" cy="11.5" r="1.9"/></svg>
+          </button>
+        </div>
       </div>
 
       <div class="panels">
+        <section class="panel" id="panel-home">
+          <div class="home-hero">
+            <p class="home-eyebrow">Welcome back</p>
+            <h2 class="home-title">Pick something to do.</h2>
+            <p class="home-sub">Everything in here is free, needs no login, and runs in this tab. Games, tools, retro consoles and the chat.</p>
+            <div class="home-actions">
+              <button class="pill" id="random-play" type="button">Surprise me</button>
+              <span class="chat-live" id="chat-live">Chat: open it once to see who's around</span>
+            </div>
+          </div>
+
+          <p class="home-label">Apps</p>
+          <div class="quick" id="quick"></div>
+
+          <p class="home-label">Recent</p>
+          <div class="recents" id="recents"></div>
+        </section>
+
         <section class="panel active" id="panel-games">
           <p class="panel-lead">Games</p>
           <div class="cards" id="games"></div>
@@ -992,10 +1480,37 @@
             <span id="panic-hint">Click the key to change it.</span>
             <button class="link-btn" id="panic-reset" type="button">Reset to default</button>
           </div>
+
+          <div class="setting-group">
+            <h2>Layout</h2>
+            <p>How the vault arranges itself.</p>
+            <div class="setting">
+              <div>
+                <h3>Style</h3>
+                <p>Movie night lays things out in wide scrolling rows, like a streaming service.</p>
+              </div>
+              <div class="choice" id="layout-choice">
+                <button type="button" data-layout="default">Default</button>
+                <button type="button" data-layout="movie">Movie night</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="setting-group">
+            <h2>Experimental</h2>
+            <p>Half-finished ideas. They might break, change or disappear.</p>
+            <div class="setting">
+              <div>
+                <h3>Home app</h3>
+                <p>Adds a Home app with recents, quick launch and a surprise button, and opens the vault there.</p>
+              </div>
+              <button class="switch" id="exp-home" type="button" role="switch" aria-checked="false" aria-label="Enable the Home app"></button>
+            </div>
+          </div>
         </section>
       </div>
 
-      <footer>Chalk &middot; Made For Fun</footer>
+      <footer>Chalk &middot; Made For Fun <span class="ver">v0.2</span></footer>
     </div>
   </div>
 
@@ -1007,6 +1522,7 @@
         { name: 'BTD4',           path: 'Bloons%20Math%20Loader.html',              img: 'previews/btd4.png' },
         { name: 'Escape Roads',   path: 'Car maintenance/index.html',               img: 'previews/escape-roads.png' },
         { name: 'Final Earth 2',  path: 'Earth and our Future/Earth/index.html',    img: 'previews/final-earth-2.png' },
+        { name: 'Learn Archery',  path: 'GAMES/Learn-Archery.html',                  img: 'previews/learn-archery.png' },
       ],
       tools: [
         { name: 'SeaOS',          path: 'SEA-OS/index.html' },
@@ -1061,10 +1577,16 @@
     }
 
     // Listen on a document we control (the game window, its frame, the chat frame).
+    // typing in a box should never fire the panic key
+    function isTyping(e) {
+      const el = e.target;
+      return !!(el && el.closest && el.closest('input, textarea, select, [contenteditable="true"]'));
+    }
+
     function armPanic(doc, onPanic) {
       if (!doc) return;
       doc.addEventListener('keydown', (e) => {
-        if (matchesCombo(e, panicCombo)) {
+        if (!isTyping(e) && matchesCombo(e, panicCombo)) {
           e.preventDefault();
           e.stopPropagation();
           onPanic();
@@ -1093,7 +1615,7 @@
     }
 
     document.addEventListener('keydown', (e) => {
-      if (listeningFor) return;
+      if (listeningFor || isTyping(e)) return;
       if (matchesCombo(e, panicCombo)) { e.preventDefault(); panicHere(); }
     }, true);
 
@@ -1177,14 +1699,18 @@
         .map((w) => w[0].toUpperCase()).join('');
     }
 
-    function buildMenu(item) {
+    function buildMenu(item, appName) {
       const menu = document.createElement('div');
       menu.className = 'tab-menu';
       OPEN_MODES.forEach(([mode, label]) => {
         const b = document.createElement('button');
         b.type = 'button';
         b.textContent = label;
-        b.addEventListener('click', () => { openTab(item.path, mode); closeAllMenus(); });
+        b.addEventListener('click', () => {
+          recordRecent({ app: appName, kind: 'page', name: item.name, path: item.path });
+          openTab(item.path, mode);
+          closeAllMenus();
+        });
         menu.appendChild(b);
       });
       return menu;
@@ -1241,7 +1767,7 @@
           card.querySelector('.thumb').appendChild(img);
         }
 
-        const menu = buildMenu(item);
+        const menu = buildMenu(item, 'Games');
         wire(wrap, card, menu);
         wrap.append(card, menu);
         grid.appendChild(wrap);
@@ -1277,7 +1803,7 @@
         row.innerHTML = '<span class="card-name"></span><span class="card-arrow">&rsaquo;</span>';
         row.querySelector('.card-name').textContent = item.name;
 
-        const menu = buildMenu(item);
+        const menu = buildMenu(item, 'Tools');
         wire(wrap, row, menu);
         wrap.append(row, menu);
         list.appendChild(wrap);
@@ -1442,6 +1968,16 @@
       };
     }
 
+    function playSite(key, game) {
+      recordRecent({ app: 'Console', kind: 'rom', key, name: game.name, file: game.file });
+      launch(key, game.name, { src: game.file });
+    }
+
+    function playMine(key, rec) {
+      recordRecent({ app: 'Console', kind: 'mine', key, name: rec.name, id: rec.id });
+      launch(key, rec.name, { file: rec.blob });
+    }
+
     function quitGame() {
       player.classList.remove('on');
       playerFrame.onload = null;
@@ -1551,8 +2087,8 @@
         }
 
         item.addEventListener('click', () => {
-          if (row.kind === 'mine') launch(key, row.name, { file: row.rec.blob });
-          else launch(key, row.name, { src: row.file });
+          if (row.kind === 'mine') playMine(key, row.rec);
+          else playSite(key, row);
         });
 
         if (row.kind === 'mine') {
@@ -1615,18 +2151,261 @@
         : 'No games listed yet. Upload a ROM and add a line to the library list at the top of this file. The emulator itself goes in emulatorjs/data/.';
     }
 
-    // ---- sidebar panels ----    // ---- sidebar panels ----
+    // ---- settings that stick ----
+    const SETTINGS_STORE = 'vault-settings';
+    const DEFAULT_SETTINGS = { home: false, layout: 'default', rail: 'open' };
+    let settings = Object.assign({}, DEFAULT_SETTINGS);
+
+    try {
+      const saved = JSON.parse(localStorage.getItem(SETTINGS_STORE) || 'null');
+      if (saved) settings = Object.assign(settings, saved);
+    } catch (e) {}
+
+    function saveSettings() {
+      try { localStorage.setItem(SETTINGS_STORE, JSON.stringify(settings)); } catch (e) {}
+    }
+
+    function applySettings() {
+      document.getElementById('nav-home').hidden = !settings.home;
+      document.body.classList.toggle('layout-movie', settings.layout === 'movie');
+      document.body.classList.toggle('rail-collapsed', settings.rail === 'collapsed');
+
+      const sw = document.getElementById('exp-home');
+      sw.setAttribute('aria-checked', String(!!settings.home));
+      document.querySelectorAll('#layout-choice button').forEach((b) => {
+        b.classList.toggle('on', b.dataset.layout === settings.layout);
+      });
+    }
+
+    // ---- what you played last ----
+    const RECENTS_STORE = 'vault-recents';
+    let recents = [];
+    try { recents = JSON.parse(localStorage.getItem(RECENTS_STORE) || '[]'); } catch (e) {}
+
+    function recordRecent(entry) {
+      const id = entry.app + ':' + entry.name;
+      recents = [Object.assign({ id, at: Date.now() }, entry), ...recents.filter((r) => r.id !== id)].slice(0, 6);
+      try { localStorage.setItem(RECENTS_STORE, JSON.stringify(recents)); } catch (e) {}
+      if (settings.home) buildRecents();
+    }
+
+    async function replayRecent(entry) {
+      if (entry.kind === 'page') { openTab(entry.path, 'cloak'); return; }
+      if (entry.kind === 'rom') { showPanel('console'); playSite(entry.key, entry); return; }
+      if (entry.kind === 'mine') {
+        const rec = (await dbAll()).find((r) => r.id === entry.id);
+        if (!rec) return;
+        showPanel('console');
+        playMine(entry.key, rec);
+      }
+    }
+
+    // ---- home ----
+    const APP_ICONS = {
+      Games: '<svg viewBox="0 0 16 16"><rect x="1.5" y="4.5" width="13" height="8" rx="2.5"/><path d="M5 7v3M3.5 8.5h3M10.5 8.5h.01M12.5 7.5h.01"/></svg>',
+      Tools: '<svg viewBox="0 0 16 16"><path d="M10.5 1.8a3.6 3.6 0 0 0-4.3 4.6L1.8 10.8a1.5 1.5 0 0 0 2.1 2.1l4.4-4.4a3.6 3.6 0 0 0 4.6-4.3L11 5.9 9.4 5.6 9.1 4z"/></svg>',
+      Console: '<svg viewBox="0 0 16 16"><rect x="1.5" y="2.5" width="13" height="9.5" rx="1.5"/><path d="M5.5 14.2h5M8 12v2.2M4.2 5.6v2.4M3 6.8h2.4M10.6 6.4h.01M12 7.8h.01"/></svg>',
+      Chat: '<svg viewBox="0 0 16 16"><path d="M2 3.5h12v8H6.5L3 14.2V11.5H2z"/></svg>',
+    };
+
+    function buildQuick() {
+      const wrap = document.getElementById('quick');
+      const romCount = Object.values(library).reduce((n, list) => n + list.length, 0);
+      const apps = [
+        { name: 'Games', panel: 'games', count: VAULT.games.length },
+        { name: 'Console', panel: 'console', count: romCount },
+        { name: 'Tools', panel: 'tools', count: VAULT.tools.length },
+        { name: 'Chat', panel: 'chat', count: null },
+      ];
+
+      wrap.innerHTML = '';
+      apps.forEach((app, i) => {
+        const tile = document.createElement('button');
+        tile.className = 'tile';
+        tile.type = 'button';
+        tile.style.setProperty('--i', i);
+        tile.innerHTML = APP_ICONS[app.name] + '<span></span><span class="tile-count"></span>';
+        tile.querySelectorAll('span')[0].textContent = app.name;
+        tile.querySelector('.tile-count').textContent = app.count === null ? '' : app.count;
+        tile.addEventListener('click', () => showPanel(app.panel));
+        wrap.appendChild(tile);
+      });
+    }
+
+    function buildRecents() {
+      const wrap = document.getElementById('recents');
+      wrap.innerHTML = '';
+
+      if (!recents.length) {
+        const p = document.createElement('p');
+        p.className = 'home-empty';
+        p.textContent = 'Nothing yet. Open something and it turns up here.';
+        wrap.appendChild(p);
+        return;
+      }
+
+      recents.forEach((entry) => {
+        const row = document.createElement('button');
+        row.className = 'rec';
+        row.type = 'button';
+        row.innerHTML = '<span></span><span class="rec-app"></span>';
+        row.querySelectorAll('span')[0].textContent = entry.name;
+        row.querySelector('.rec-app').textContent = entry.app;
+        row.addEventListener('click', () => replayRecent(entry));
+        wrap.appendChild(row);
+      });
+    }
+
+    async function buildHome() {
+      buildConsole();          // so the rom counts are right
+      buildQuick();
+      buildRecents();
+    }
+
+    document.getElementById('random-play').addEventListener('click', async () => {
+      const pool = [];
+      Object.entries(library).forEach(([key, list]) => list.forEach((g) => pool.push({ kind: 'rom', key, game: g })));
+      (await dbAll()).forEach((rec) => pool.push({ kind: 'mine', key: rec.system, rec }));
+      VAULT.games.forEach((g) => pool.push({ kind: 'page', item: g }));
+
+      if (!pool.length) return;
+      const pick = pool[Math.floor(Math.random() * pool.length)];
+
+      if (pick.kind === 'rom') { showPanel('console'); playSite(pick.key, pick.game); }
+      else if (pick.kind === 'mine') { showPanel('console'); playMine(pick.key, pick.rec); }
+      else { recordRecent({ app: 'Games', kind: 'page', name: pick.item.name, path: pick.item.path }); openTab(pick.item.path, 'cloak'); }
+    });
+
+    // the chat page tells us how many people are in there
+    window.addEventListener('message', (e) => {
+      if (e.origin !== location.origin) return;
+      const d = e.data;
+      if (!d || d.type !== 'presence') return;
+      const live = document.getElementById('chat-live');
+      live.innerHTML = 'Chat: <b></b> here right now';
+      live.querySelector('b').textContent = d.count;
+    });
+
+    // ---- search across every app ----
+    const search = document.getElementById('search');
+    const results = document.getElementById('results');
+
+    async function searchIndex() {
+      const rows = [];
+      VAULT.games.forEach((g) => rows.push({ app: 'Games', name: g.name, where: 'page', run: () => {
+        recordRecent({ app: 'Games', kind: 'page', name: g.name, path: g.path });
+        openTab(g.path, 'cloak');
+      } }));
+      VAULT.tools.forEach((t) => rows.push({ app: 'Tools', name: t.name, where: 'page', run: () => {
+        recordRecent({ app: 'Tools', kind: 'page', name: t.name, path: t.path });
+        openTab(t.path, 'cloak');
+      } }));
+      Object.entries(library).forEach(([key, list]) => list.forEach((g) => rows.push({
+        app: 'Console', name: g.name, where: SYSTEMS[key].label,
+        run: () => { showPanel('console'); playSite(key, g); },
+      })));
+      (await dbAll()).forEach((rec) => rows.push({
+        app: 'Console', name: rec.name, where: 'your file',
+        run: () => { showPanel('console'); playMine(rec.system, rec); },
+      }));
+      return rows;
+    }
+
+    function closeResults() { results.classList.remove('on'); }
+
+    async function runSearch() {
+      const q = search.value.trim().toLowerCase();
+      if (!q) return closeResults();
+
+      const hits = (await searchIndex()).filter((r) => r.name.toLowerCase().includes(q));
+      results.innerHTML = '';
+
+      if (!hits.length) {
+        const none = document.createElement('p');
+        none.className = 'res-empty';
+        none.textContent = 'Nothing matches "' + search.value.trim() + '".';
+        results.appendChild(none);
+        results.classList.add('on');
+        return;
+      }
+
+      ['Games', 'Console', 'Tools'].forEach((app) => {
+        const group = hits.filter((h) => h.app === app);
+        if (!group.length) return;
+
+        const label = document.createElement('p');
+        label.className = 'res-group';
+        label.textContent = app;
+        results.appendChild(label);
+
+        group.forEach((hit) => {
+          const b = document.createElement('button');
+          b.className = 'res-item';
+          b.type = 'button';
+          b.innerHTML = '<span></span><span class="res-where"></span>';
+          b.querySelectorAll('span')[0].textContent = hit.name;
+          b.querySelector('.res-where').textContent = hit.where;
+          b.addEventListener('click', () => {
+            shutSearch();
+            hit.run();
+          });
+          results.appendChild(b);
+        });
+      });
+
+      results.classList.add('on');
+    }
+
+    const searchWrap = document.getElementById('search-wrap');
+
+    function openSearch() {
+      searchWrap.classList.add('open');
+      search.focus();
+    }
+
+    function shutSearch() {
+      searchWrap.classList.remove('open');
+      search.value = '';
+      closeResults();
+    }
+
+    document.getElementById('search-btn').addEventListener('click', () => {
+      if (searchWrap.classList.contains('open')) shutSearch();
+      else openSearch();
+    });
+
+    search.addEventListener('input', runSearch);
+    search.addEventListener('focus', () => { if (search.value.trim()) runSearch(); });
+    search.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { shutSearch(); search.blur(); }
+      if (e.key === 'Enter') {
+        const first = results.querySelector('.res-item');
+        if (first) first.click();
+      }
+    });
+
+    // clicking away closes it, but only when nothing has been typed
+    document.addEventListener('click', (e) => {
+      if (e.target.closest('.search-wrap')) return;
+      closeResults();
+      if (!search.value.trim()) searchWrap.classList.remove('open');
+    });
+
+    // ---- apps ----
     let chatFrame = null;
 
     function showPanel(name) {
       closeAllMenus();
+      closeResults();
       document.querySelectorAll('.nav-btn').forEach((b) => {
         b.classList.toggle('active', b.dataset.panel === name);
       });
       document.querySelectorAll('.panel').forEach((p) => {
         p.classList.toggle('active', p.id === 'panel-' + name);
       });
+      document.getElementById('gear').classList.toggle('active', name === 'settings');
 
+      if (name === 'home') buildHome();
       if (name === 'console') buildConsole();
       else quitGame();
 
@@ -1647,6 +2426,37 @@
       b.addEventListener('click', () => showPanel(b.dataset.panel));
     });
 
+    document.getElementById('gear').addEventListener('click', () => showPanel('settings'));
+
+    const railToggle = document.getElementById('rail-toggle');
+    railToggle.addEventListener('click', () => {
+      settings.rail = settings.rail === 'collapsed' ? 'open' : 'collapsed';
+      saveSettings();
+      applySettings();
+      railToggle.title = settings.rail === 'collapsed' ? 'Expand sidebar' : 'Collapse sidebar';
+    });
+
+    // experimental: the Home app
+    document.getElementById('exp-home').addEventListener('click', () => {
+      settings.home = !settings.home;
+      saveSettings();
+      applySettings();
+      if (settings.home) showPanel('home');
+      else if (document.getElementById('panel-home').classList.contains('active')) showPanel('games');
+    });
+
+    // layout picker
+    document.querySelectorAll('#layout-choice button').forEach((b) => {
+      b.addEventListener('click', () => {
+        settings.layout = b.dataset.layout;
+        saveSettings();
+        applySettings();
+      });
+    });
+
+    applySettings();
+    if (settings.home) showPanel('home');
+
     document.addEventListener('click', (e) => {
       if (!e.target.closest('.card-wrap')) closeAllMenus();
     });
@@ -1657,12 +2467,10 @@
     // ---- settings: rebinding the panic key ----
     const keycap = document.getElementById('panic-key');
     const hint = document.getElementById('panic-hint');
-    const note = document.getElementById('panic-note');
     let listeningFor = false;
 
     function paintPanic() {
       keycap.textContent = comboLabel(panicCombo);
-      note.textContent = 'panic: ' + comboLabel(panicCombo);
     }
 
     keycap.addEventListener('click', () => {

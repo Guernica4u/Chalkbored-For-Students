@@ -572,5 +572,19 @@
     });
   }
 </script>
+<script>
+  /* Tell the vault how many people are in the chat, so its Home app can show it. */
+  (function () {
+    if (window.parent === window) return;
+    var el = document.getElementById('online-count');
+    if (!el) return;
+    var send = function () {
+      var n = (el.textContent || '').match(/\d+/);
+      if (n) window.parent.postMessage({ type: 'presence', count: Number(n[0]) }, location.origin);
+    };
+    new MutationObserver(send).observe(el, { childList: true, characterData: true, subtree: true });
+    send();
+  })();
+</script>
 </body>
 </html>
