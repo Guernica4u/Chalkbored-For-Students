@@ -1,0 +1,1709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vault — ChalkBored</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0c0d10;
+    --panel: #131519;
+    --panel-hover: #171b1f;
+    --rail: #101216;
+    --ink: #e8e8e6;
+    --muted: #6f7680;
+    --line: #23262c;
+    --accent: #6ee7a8;
+    --accent-dim: #2f6b4f;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body { height: 100%; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+
+  /* faint scanlines */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 60;
+    background: repeating-linear-gradient(to bottom, rgba(255,255,255,0.018) 0 1px, transparent 1px 3px);
+  }
+
+  /* the page fades up out of black */
+  .curtain {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    background: #000;
+    pointer-events: none;
+    opacity: 1;
+    /* CSS drives the fade so the page is never stuck black if the script fails */
+    animation: lift 0.9s ease 0.05s forwards;
+  }
+
+  @keyframes lift { to { opacity: 0; } }
+
+  .shell {
+    display: grid;
+    grid-template-columns: 232px 1fr;
+    height: 100%;
+  }
+
+  /* ---------------- sidebar ---------------- */
+
+  .rail {
+    display: flex;
+    flex-direction: column;
+    background: var(--rail);
+    border-right: 1px solid var(--line);
+    padding: 1.75rem 1rem 1.25rem;
+    overflow-y: auto;
+  }
+
+  .brand {
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin: 0 0 0.3rem;
+    padding-left: 0.85rem;
+  }
+
+  .brand .dim { color: var(--muted); font-weight: 400; }
+
+  .brand-sub {
+    margin: 0 0 2rem;
+    padding-left: 0.85rem;
+    font-size: 0.66rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent-dim);
+  }
+
+  .nav {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .nav-btn {
+    --i: 0;
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    width: 100%;
+    padding: 0.7rem 0.85rem;
+    background: none;
+    border: none;
+    border-left: 2px solid transparent;
+    color: var(--muted);
+    font: inherit;
+    font-size: 0.85rem;
+    text-align: left;
+    cursor: pointer;
+    transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+    opacity: 0;
+    animation: slidein 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation-delay: calc(0.15s + var(--i) * 70ms);
+  }
+
+  @keyframes slidein {
+    from { opacity: 0; transform: translateX(-10px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+
+  .nav-btn:hover,
+  .nav-btn:focus-visible {
+    color: var(--ink);
+    background: #14171b;
+    transform: translateX(2px);
+    outline: none;
+  }
+
+  .nav-btn.active {
+    color: var(--accent);
+    background: #12171a;
+    border-left-color: var(--accent);
+  }
+
+  .nav-btn .tally {
+    margin-left: auto;
+    font-size: 0.7rem;
+    color: var(--muted);
+  }
+
+  .nav-icon {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 1.4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .rail-foot {
+    margin-top: auto;
+    padding-top: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+  }
+
+  .back-link {
+    font-size: 0.78rem;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    text-decoration: none;
+    padding-left: 0.85rem;
+    transition: color 0.2s ease, transform 0.2s ease;
+  }
+
+  .back-link:hover,
+  .back-link:focus-visible { color: var(--accent); transform: translateX(-3px); outline: none; }
+
+  .rail-note {
+    padding-left: 0.85rem;
+    font-size: 0.68rem;
+    color: #3f454c;
+    letter-spacing: 0.04em;
+  }
+
+  /* ---------------- main ---------------- */
+
+  .main {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .topbar {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1.5rem;
+    padding: 2.5rem 2.25rem 1.5rem;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .rule {
+    width: 48px;
+    height: 1px;
+    background: var(--accent);
+    margin-bottom: 1.5rem;
+    transform: scaleX(0);
+    transform-origin: left;
+    animation: draw 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.25s forwards;
+  }
+
+  @keyframes draw { to { transform: scaleX(1); } }
+
+  h1 {
+    margin: 0;
+    font-weight: 700;
+    font-size: clamp(1.6rem, 3.4vw, 2.4rem);
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+  }
+
+  h1 .sep { color: var(--muted); font-weight: 400; }
+
+  h1 .cursor {
+    display: inline-block;
+    width: 0.5em;
+    height: 0.85em;
+    margin-left: 0.12em;
+    background: var(--accent);
+    vertical-align: -0.05em;
+    animation: blink 1.1s steps(1) infinite;
+  }
+
+  @keyframes blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+
+  .panels {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .panel {
+    position: absolute;
+    inset: 0;
+    overflow-y: auto;
+    padding: 2rem 2.25rem 3rem;
+    visibility: hidden;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), visibility 0s linear 0.35s;
+  }
+
+  .panel.active {
+    visibility: visible;
+    opacity: 1;
+    transform: translateY(0);
+    transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), visibility 0s;
+  }
+
+  .panel.flush { padding: 0; }
+
+  .panel-lead {
+    margin: 0 0 1.75rem;
+    font-size: 0.8rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .panel-lead::before { content: '// '; color: var(--accent-dim); }
+
+  /* ---------------- games ---------------- */
+
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 1rem;
+  }
+
+  .card-wrap { position: relative; }
+  .card-wrap.is-open { z-index: 30; }
+
+  .card {
+    --i: 0;
+    display: block;
+    width: 100%;
+    padding: 0;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    font: inherit;
+    text-align: left;
+    text-decoration: none;
+    cursor: pointer;
+    overflow: hidden;
+    transition: border-color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease, background-color 0.25s ease;
+    opacity: 0;
+    animation: rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation-delay: calc(var(--i) * 55ms);
+  }
+
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .card:hover,
+  .card:focus-visible,
+  .card-wrap.is-open .card {
+    border-color: var(--accent-dim);
+    background: var(--panel-hover);
+    transform: translateY(-3px);
+    box-shadow: 0 10px 28px rgba(0,0,0,0.45);
+    outline: none;
+  }
+
+  .thumb {
+    display: block;
+    position: relative;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    background: linear-gradient(135deg, #1b2027, #10131a 60%, #161b22);
+    border-bottom: 1px solid var(--line);
+  }
+
+  /* placeholder shown until a preview image is dropped in */
+  .thumb .mono {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    font-size: 1.6rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: #2c333c;
+    transition: color 0.3s ease;
+  }
+
+  .card:hover .thumb .mono { color: var(--accent-dim); }
+
+  .thumb::after {
+    /* sheen that sweeps across on hover */
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(105deg, transparent 35%, rgba(110,231,168,0.10) 50%, transparent 65%);
+    transform: translateX(-120%);
+    transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .card:hover .thumb::after { transform: translateX(120%); }
+
+  .thumb img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transform: scale(1.01);
+    transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1), filter 0.3s ease;
+    filter: saturate(0.85) brightness(0.9);
+  }
+
+  .card:hover .thumb img,
+  .card:focus-visible .thumb img {
+    transform: scale(1.06);
+    filter: saturate(1) brightness(1);
+  }
+
+  .card-body {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.85rem 1rem 0.95rem;
+  }
+
+  .card-name {
+    font-size: 0.95rem;
+    font-weight: 500;
+    transition: color 0.25s ease;
+  }
+
+  .card:hover .card-name,
+  .card:focus-visible .card-name,
+  .card-wrap.is-open .card-name { color: var(--accent); }
+
+  .card-arrow {
+    color: var(--muted);
+    font-size: 0.8rem;
+    transition: transform 0.25s ease, color 0.25s ease;
+  }
+
+  .card:hover .card-arrow { color: var(--accent); transform: translateX(3px); }
+  .card-wrap.is-open .card-arrow { transform: rotate(90deg); color: var(--accent); }
+
+  .card.soon { cursor: default; opacity: 0.55; }
+  .card.soon:hover { transform: none; border-color: var(--line); background: var(--panel); box-shadow: none; }
+  .card.soon:hover .card-name { color: var(--ink); }
+  .card.soon .thumb { background: #101215; }
+  .card.soon:hover .thumb::after { transform: translateX(-120%); }
+
+  /* ---------------- tools ---------------- */
+
+  .rows {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    max-width: 620px;
+  }
+
+  .row {
+    --i: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    width: 100%;
+    padding: 0.85rem 1.1rem;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    font: inherit;
+    font-size: 0.92rem;
+    text-align: left;
+    text-decoration: none;
+    cursor: pointer;
+    transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.2s ease, color 0.2s ease;
+    opacity: 0;
+    animation: rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation-delay: calc(var(--i) * 45ms);
+  }
+
+  .row:hover,
+  .row:focus-visible,
+  .card-wrap.is-open .row {
+    border-color: var(--accent-dim);
+    background: var(--panel-hover);
+    color: var(--accent);
+    transform: translateX(4px);
+    outline: none;
+  }
+
+  .row .card-arrow { transition: transform 0.25s ease, color 0.25s ease; }
+  .row:hover .card-arrow { color: var(--accent); transform: translateX(3px); }
+  .card-wrap.is-open .row .card-arrow { transform: rotate(90deg); }
+
+  .row.soon { cursor: default; opacity: 0.55; }
+  .row.soon:hover { transform: none; border-color: var(--line); background: var(--panel); color: var(--ink); }
+
+  /* ---------------- open-in menu ---------------- */
+
+  .tab-menu {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    z-index: 20;
+    background: #0d0f12;
+    border: 1px solid var(--accent-dim);
+    box-shadow: 0 16px 40px rgba(0,0,0,0.7);
+  }
+
+  .tab-menu.open { display: block; animation: drawer 0.2s ease-out; }
+
+  @keyframes drawer { from { opacity: 0; transform: translateY(-6px); } }
+
+  .tab-menu button {
+    display: block;
+    width: 100%;
+    padding: 0.6rem 0.9rem;
+    background: none;
+    border: none;
+    border-top: 1px solid var(--line);
+    color: var(--muted);
+    font: inherit;
+    font-size: 0.78rem;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+  }
+
+  .tab-menu button:first-child { border-top: none; }
+  .tab-menu button::before { content: '  '; white-space: pre; }
+
+  .tab-menu button:hover,
+  .tab-menu button:focus-visible { background: #12161a; color: var(--accent); outline: none; }
+  .tab-menu button:hover::before,
+  .tab-menu button:focus-visible::before { content: '> '; }
+
+  /* ---------------- chat ---------------- */
+
+  .chat-frame {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: var(--bg);
+  }
+
+  /* ---------------- settings ---------------- */
+
+  .setting {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2rem;
+    max-width: 620px;
+    padding: 1.1rem 1.25rem;
+    background: var(--panel);
+    border: 1px solid var(--line);
+  }
+
+  .setting h3 {
+    margin: 0 0 0.35rem;
+    font-size: 0.92rem;
+    font-weight: 500;
+  }
+
+  .setting p {
+    margin: 0;
+    font-size: 0.76rem;
+    line-height: 1.6;
+    color: var(--muted);
+    max-width: 44ch;
+  }
+
+  .keycap {
+    flex-shrink: 0;
+    min-width: 132px;
+    padding: 0.7rem 1rem;
+    background: #0d0f12;
+    border: 1px solid var(--line);
+    color: var(--ink);
+    font: inherit;
+    font-size: 0.8rem;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s ease, color 0.2s ease, background-color 0.2s ease;
+  }
+
+  .keycap:hover,
+  .keycap:focus-visible { border-color: var(--accent-dim); color: var(--accent); outline: none; }
+
+  .keycap.listening {
+    border-color: var(--accent);
+    color: var(--accent);
+    animation: waiting 1.2s ease-in-out infinite;
+  }
+
+  @keyframes waiting { 50% { opacity: 0.5; } }
+
+  .setting-foot {
+    max-width: 620px;
+    margin-top: 0.9rem;
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    font-size: 0.72rem;
+    color: #4a5058;
+  }
+
+  .link-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font: inherit;
+    font-size: 0.72rem;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+    padding: 0;
+  }
+
+  .link-btn:hover { color: var(--accent); }
+
+  /* ---------------- console ---------------- */
+
+  .systems {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+    gap: 1.1rem;
+  }
+
+  .system-card {
+    --i: 0;
+    position: relative;
+    display: block;
+    width: 100%;
+    padding: 0;
+    background: linear-gradient(165deg, #151a1f 0%, #0f1215 70%);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    overflow: hidden;
+    transition: border-color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
+    opacity: 0;
+    animation: rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation-delay: calc(var(--i) * 80ms);
+  }
+
+  .system-card::before {
+    /* soft light behind the hardware */
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 20%;
+    width: 70%;
+    height: 60%;
+    transform: translateX(-50%);
+    background: radial-gradient(ellipse, rgba(110,231,168,0.10), transparent 70%);
+    opacity: 0;
+    transition: opacity 0.35s ease;
+  }
+
+  .system-card:hover,
+  .system-card:focus-visible {
+    border-color: var(--accent-dim);
+    transform: translateY(-3px);
+    box-shadow: 0 14px 34px rgba(0,0,0,0.5);
+    outline: none;
+  }
+
+  .system-card:hover::before,
+  .system-card:focus-visible::before { opacity: 1; }
+
+  .system-art {
+    display: grid;
+    place-items: center;
+    padding: 1.9rem 1.5rem 1.4rem;
+    min-height: 168px;
+  }
+
+  .system-art svg,
+  .system-art img {
+    display: block;
+    width: 100%;
+    max-width: 240px;
+    height: auto;
+    filter: drop-shadow(0 10px 18px rgba(0,0,0,0.55));
+    transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .system-card:hover .system-art svg,
+  .system-card:hover .system-art img { transform: translateY(-5px) scale(1.03); }
+
+  .system-meta {
+    position: relative;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.9rem 1.2rem 1rem;
+    border-top: 1px solid var(--line);
+    background: rgba(9,10,12,0.5);
+  }
+
+  .system-name { font-size: 0.92rem; font-weight: 500; transition: color 0.25s ease; }
+  .system-card:hover .system-name { color: var(--accent); }
+
+  .system-sub {
+    display: block;
+    margin-top: 0.2rem;
+    font-size: 0.64rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .system-count { font-size: 0.72rem; color: var(--accent-dim); white-space: nowrap; }
+
+  /* ---- one system's library ---- */
+
+  .library { display: none; }
+  .library.on { display: block; animation: fadein 0.3s ease; }
+  .systems-view.off { display: none; }
+
+  .lib-head {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    padding-bottom: 1.25rem;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .lib-art { width: 86px; flex-shrink: 0; }
+  .lib-art svg, .lib-art img { width: 100%; height: auto; display: block; }
+  .lib-titles h3 { margin: 0; font-size: 1.05rem; font-weight: 500; }
+  .lib-titles span { font-size: 0.68rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+
+  .game-list {
+    border: 1px solid var(--line);
+    background: var(--panel);
+  }
+
+  .game-item {
+    --i: 0;
+    display: grid;
+    grid-template-columns: 3rem 1fr auto;
+    align-items: center;
+    gap: 1rem;
+    width: 100%;
+    padding: 0.7rem 1rem;
+    background: none;
+    border: none;
+    border-bottom: 1px solid var(--line);
+    color: var(--ink);
+    font: inherit;
+    font-size: 0.88rem;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 0.18s ease, color 0.18s ease, padding-left 0.18s ease;
+    opacity: 0;
+    animation: rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation-delay: calc(var(--i) * 35ms);
+  }
+
+  .game-item:last-child { border-bottom: none; }
+
+  .game-item:hover,
+  .game-item:focus-visible {
+    background: var(--panel-hover);
+    color: var(--accent);
+    padding-left: 1.35rem;
+    outline: none;
+  }
+
+  .game-slot {
+    display: grid;
+    place-items: center;
+    height: 34px;
+    background: #0f1215;
+    border: 1px solid var(--line);
+    font-size: 0.65rem;
+    color: var(--muted);
+    overflow: hidden;
+  }
+
+  .game-slot img { width: 100%; height: 100%; object-fit: cover; }
+
+  .game-where { font-size: 0.66rem; color: var(--muted); }
+  .game-item:hover .game-where { color: var(--accent-dim); }
+
+  .lib-empty {
+    padding: 2rem 1.25rem;
+    border: 1px dashed var(--line);
+    font-size: 0.78rem;
+    line-height: 1.8;
+    color: var(--muted);
+  }
+
+  .lib-empty code { color: var(--accent-dim); }
+
+  /* ---- shared bits ---- */
+
+  .console-bar {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-top: 1.5rem;
+    padding: 0.9rem 1.1rem;
+    border: 1px dashed var(--line);
+    background: #0f1114;
+    transition: border-color 0.2s ease, background-color 0.2s ease;
+  }
+
+  .console-bar.dragging { border-color: var(--accent); background: #101a15; }
+
+  .console-bar p { margin: 0; font-size: 0.74rem; line-height: 1.6; color: var(--muted); }
+
+  .pill {
+    flex-shrink: 0;
+    padding: 0.55rem 1rem;
+    background: #12161a;
+    border: 1px solid var(--line);
+    color: var(--ink);
+    font: inherit;
+    font-size: 0.78rem;
+    cursor: pointer;
+    transition: border-color 0.2s ease, color 0.2s ease;
+  }
+
+  .pill:hover, .pill:focus-visible { border-color: var(--accent-dim); color: var(--accent); outline: none; }
+
+  .back-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .drop-hint {
+    margin-top: 1.5rem;
+    font-size: 0.72rem;
+    line-height: 1.8;
+    color: #4a5058;
+    max-width: 68ch;
+  }
+
+  .drop-hint code { color: var(--accent-dim); }
+
+  /* player takes over the whole panel */
+  .player {
+    position: absolute;
+    inset: 0;
+    display: none;
+    flex-direction: column;
+    background: var(--bg);
+    z-index: 40;
+  }
+
+  .player.on { display: flex; animation: fadein 0.3s ease; }
+
+  @keyframes fadein { from { opacity: 0; } }
+
+  .player-head {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.85rem 1.25rem;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .player-head .name { font-size: 0.85rem; }
+  .player-head .name .sysname { color: var(--muted); }
+  .player-head .spacer { margin-left: auto; }
+
+  .player-frame { flex: 1; width: 100%; border: none; background: #000; }
+
+  .quit {
+    padding: 0.45rem 0.9rem;
+    background: none;
+    border: 1px solid var(--line);
+    color: var(--muted);
+    font: inherit;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+  }
+
+  .quit:hover, .quit:focus-visible { color: var(--accent); border-color: var(--accent-dim); transform: translateX(-2px); outline: none; }
+
+  footer {
+    padding: 1rem 2.25rem;
+    border-top: 1px solid var(--line);
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+  }
+
+  @media (max-width: 760px) {
+    body { overflow: auto; }
+    .shell { grid-template-columns: 1fr; height: auto; }
+    .rail { border-right: none; border-bottom: 1px solid var(--line); padding-bottom: 1rem; }
+    .nav { flex-direction: row; flex-wrap: wrap; }
+    .nav-btn { width: auto; border-left: none; border-bottom: 2px solid transparent; }
+    .nav-btn.active { border-left-color: transparent; border-bottom-color: var(--accent); }
+    .rail-foot { flex-direction: row; align-items: center; justify-content: space-between; padding-top: 1rem; }
+    .panels { min-height: 70svh; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-delay: 0s !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+</style>
+</head>
+<body>
+
+  <div class="curtain" id="curtain" aria-hidden="true"></div>
+
+  <div class="shell">
+    <nav class="rail">
+      <p class="brand">Chalk<span class="dim">Bored</span></p>
+      <p class="brand-sub">Vault</p>
+
+      <div class="nav">
+        <button class="nav-btn active" type="button" data-panel="games" style="--i:0">
+          <svg class="nav-icon" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="4.5" width="13" height="8" rx="2.5"/><path d="M5 7v3M3.5 8.5h3M10.5 8.5h.01M12.5 7.5h.01"/></svg>
+          <span>Games</span>
+          <span class="tally" id="tally-games"></span>
+        </button>
+        <button class="nav-btn" type="button" data-panel="tools" style="--i:1">
+          <svg class="nav-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M10.5 1.8a3.6 3.6 0 0 0-4.3 4.6L1.8 10.8a1.5 1.5 0 0 0 2.1 2.1l4.4-4.4a3.6 3.6 0 0 0 4.6-4.3L11 5.9 9.4 5.6 9.1 4z"/></svg>
+          <span>Tools</span>
+          <span class="tally" id="tally-tools"></span>
+        </button>
+        <button class="nav-btn" type="button" data-panel="console" style="--i:2">
+          <svg class="nav-icon" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="9.5" rx="1.5"/><path d="M5.5 14.2h5M8 12v2.2M4.2 5.6v2.4M3 6.8h2.4M10.6 6.4h.01M12 7.8h.01"/></svg>
+          <span>Console</span>
+          <span class="tally" id="tally-console"></span>
+        </button>
+        <button class="nav-btn" type="button" data-panel="chat" style="--i:3">
+          <svg class="nav-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3.5h12v8H6.5L3 14.2V11.5H2z"/></svg>
+          <span>Chat</span>
+        </button>
+        <button class="nav-btn" type="button" data-panel="settings" style="--i:4">
+          <svg class="nav-icon" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="2.2"/><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M12.6 3.4l-1.4 1.4M4.8 11.2l-1.4 1.4"/></svg>
+          <span>Settings</span>
+        </button>
+      </div>
+
+      <div class="rail-foot">
+        <a class="back-link" href="index.html">&larr; back</a>
+        <span class="rail-note" id="panic-note"></span>
+      </div>
+    </nav>
+
+    <div class="main">
+      <div class="topbar">
+        <div>
+          <div class="rule"></div>
+          <h1>ChalkBored <span class="sep">&mdash;</span> Vault<span class="cursor" aria-hidden="true"></span></h1>
+        </div>
+      </div>
+
+      <div class="panels">
+        <section class="panel active" id="panel-games">
+          <p class="panel-lead">Games</p>
+          <div class="cards" id="games"></div>
+        </section>
+
+        <section class="panel" id="panel-tools">
+          <p class="panel-lead">Tools</p>
+          <div class="rows" id="tools"></div>
+        </section>
+
+        <section class="panel" id="panel-console">
+          <p class="panel-lead">Console</p>
+
+          <div class="systems-view" id="systems-view">
+            <div class="systems" id="systems"></div>
+            <p class="drop-hint" id="console-hint"></p>
+          </div>
+
+          <div class="library" id="library">
+            <div class="back-row">
+              <button class="quit" type="button" id="back-systems">&larr; systems</button>
+            </div>
+            <div class="lib-head">
+              <div class="lib-art" id="lib-art"></div>
+              <div class="lib-titles">
+                <h3 id="lib-name"></h3>
+                <span id="lib-sub"></span>
+              </div>
+            </div>
+            <div id="lib-body"></div>
+            <div class="console-bar" id="dropzone">
+              <button class="pill" type="button" id="load-rom">Load ROM</button>
+              <p>Or drag a game file in here. Your files stay in this browser &mdash; nothing is uploaded.</p>
+              <input type="file" id="rom-input" accept=".nes,.sfc,.smc,.fig,.swc" multiple hidden>
+            </div>
+            <p class="drop-hint" id="lib-hint"></p>
+          </div>
+        </section>
+
+        <div class="player" id="player">
+          <div class="player-head">
+            <button class="quit" type="button" id="quit-game">&larr; shelf</button>
+            <span class="name" id="playing"></span>
+            <span class="spacer"></span>
+            <button class="quit" type="button" id="go-full">fullscreen</button>
+          </div>
+          <iframe class="player-frame" id="player-frame" title="Chalk Console"
+                  allow="fullscreen; autoplay; gamepad; clipboard-read; clipboard-write" allowfullscreen></iframe>
+        </div>
+
+        <section class="panel flush" id="panel-chat"></section>
+
+        <section class="panel" id="panel-settings">
+          <p class="panel-lead">Settings</p>
+          <div class="setting">
+            <div>
+              <h3>Panic key</h3>
+              <p>Jumps this tab to the vault and turns the vault tab into the normal homepage. Works while you're in a game too.</p>
+            </div>
+            <button class="keycap" id="panic-key" type="button">&mdash;</button>
+          </div>
+          <div class="setting-foot">
+            <span id="panic-hint">Click the key to change it.</span>
+            <button class="link-btn" id="panic-reset" type="button">Reset to default</button>
+          </div>
+        </section>
+      </div>
+
+      <footer>Chalk &middot; Made For Fun</footer>
+    </div>
+  </div>
+
+  <script>
+    // ---- What's in the vault. `img` is optional: drop a screenshot in previews/ ----
+    const VAULT = {
+      games: [
+        { name: 'Learn to Fly 3', path: 'AeroDynamics-Loader.html',                 img: 'previews/learn-to-fly-3.png' },
+        { name: 'BTD4',           path: 'Bloons%20Math%20Loader.html',              img: 'previews/btd4.png' },
+        { name: 'Escape Roads',   path: 'Car maintenance/index.html',               img: 'previews/escape-roads.png' },
+        { name: 'Final Earth 2',  path: 'Earth and our Future/Earth/index.html',    img: 'previews/final-earth-2.png' },
+      ],
+      tools: [
+        { name: 'SeaOS',          path: 'SEA-OS/index.html' },
+      ],
+    };
+    const SLOTS = 10;
+
+    // ---- panic key ----
+    const PANIC_DEFAULT = { key: '`', ctrl: false, alt: false, shift: false, meta: false };
+    const PANIC_STORE = 'vault-panic-key';
+    let panicCombo = PANIC_DEFAULT;
+
+    try {
+      const saved = JSON.parse(localStorage.getItem(PANIC_STORE) || 'null');
+      if (saved && saved.key) panicCombo = saved;
+    } catch (e) {}
+
+    function comboLabel(c) {
+      const parts = [];
+      if (c.ctrl) parts.push('Ctrl');
+      if (c.alt) parts.push('Alt');
+      if (c.shift) parts.push('Shift');
+      if (c.meta) parts.push('Meta');
+      const named = { ' ': 'Space', '`': '`  (backtick)', Escape: 'Esc', ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→' };
+      parts.push(named[c.key] || (c.key.length === 1 ? c.key.toUpperCase() : c.key));
+      return parts.join(' + ');
+    }
+
+    function matchesCombo(e, c) {
+      if (!c || !c.key) return false;
+      const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+      const want = c.key.length === 1 ? c.key.toLowerCase() : c.key;
+      return key === want && !!c.ctrl === e.ctrlKey && !!c.alt === e.altKey && !!c.shift === e.shiftKey && !!c.meta === e.metaKey;
+    }
+
+    const VAULT_URL = new URL('vault.html', location.href).href;
+    const HOME_URL = new URL('index.html', location.href).href;
+
+    // On this tab: straight to the homepage.
+    function panicHere() {
+      location.replace(HOME_URL);
+    }
+
+    /* Inside a game tab we opened: that tab goes back to the vault, and the vault
+       tab it came from quietly becomes the homepage. Neither one closes. */
+    function panicFromGame(win) {
+      try {
+        if (win.opener && !win.opener.closed) win.opener.location.replace(HOME_URL);
+      } catch (e) {}
+      try { win.focus(); } catch (e) {}
+      win.location.replace(VAULT_URL);
+    }
+
+    // Listen on a document we control (the game window, its frame, the chat frame).
+    function armPanic(doc, onPanic) {
+      if (!doc) return;
+      doc.addEventListener('keydown', (e) => {
+        if (matchesCombo(e, panicCombo)) {
+          e.preventDefault();
+          e.stopPropagation();
+          onPanic();
+        }
+      }, true);
+    }
+
+    // Games run in same-origin pages, so the key still reaches us inside them.
+    function armWindow(win) {
+      if (!win) return;
+      const attach = () => {
+        try {
+          armPanic(win.document, () => panicFromGame(win));
+          win.document.querySelectorAll('iframe').forEach((f) => {
+            try { armPanic(f.contentDocument, () => panicFromGame(win)); } catch (e) {}
+            f.addEventListener('load', () => {
+              try { armPanic(f.contentDocument, () => panicFromGame(win)); } catch (e) {}
+            });
+          });
+        } catch (e) { /* cross-origin page: the key can't be seen there */ }
+      };
+      attach();
+      try { win.addEventListener('load', attach); } catch (e) {}
+      // pages that stream in slowly still get covered
+      [400, 1200, 3000].forEach((t) => setTimeout(attach, t));
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (listeningFor) return;
+      if (matchesCombo(e, panicCombo)) { e.preventDefault(); panicHere(); }
+    }, true);
+
+    // ---- opening things ----
+    const CHROME_MONO_ICON = 'data:image/svg+xml,' + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">' +
+        '<defs><clipPath id="c"><circle cx="24" cy="24" r="22"/></clipPath></defs>' +
+        '<circle cx="24" cy="24" r="22" fill="#80868b"/>' +
+        '<g clip-path="url(#c)" stroke="#fff" stroke-width="2.6" stroke-linecap="round">' +
+          '<line x1="24" y1="14" x2="48" y2="14"/>' +
+          '<line x1="32.66" y1="29" x2="20.66" y2="49.8"/>' +
+          '<line x1="15.34" y1="29" x2="3.34" y2="8.2"/>' +
+        '</g>' +
+        '<circle cx="24" cy="24" r="10.5" fill="#fff"/>' +
+        '<circle cx="24" cy="24" r="8" fill="#80868b"/>' +
+      '</svg>'
+    );
+
+    const CLOAKS = {
+      cloak:  { title: 'New Tab', icon: CHROME_MONO_ICON },
+      google: { title: 'Google',  icon: 'https://www.google.com/favicon.ico' }
+    };
+
+    const OPEN_MODES = [
+      ['cloak',  'New Tab Cloak'],
+      ['google', 'Google cloak'],
+      ['normal', 'Normal tab'],
+    ];
+
+    function openTab(url, mode) {
+      // Resolve against this page so relative paths still work inside the about:blank window
+      const fullUrl = new URL(url, window.location.href).href;
+
+      if (mode === 'normal') {
+        const plain = window.open(fullUrl, '_blank');
+        armWindow(plain);
+        return;
+      }
+
+      const disguise = CLOAKS[mode] || CLOAKS.cloak;
+      const title = disguise.title;
+      const win = window.open('about:blank', '_blank');
+      if (!win) return;
+
+      const doc = win.document;
+      doc.title = title;
+      doc.body.style.margin = '0';
+
+      if (disguise.icon) {
+        const icon = doc.createElement('link');
+        icon.rel = 'icon';
+        icon.href = disguise.icon;
+        doc.head.appendChild(icon);
+      }
+
+      const iframe = doc.createElement('iframe');
+      iframe.src = fullUrl;
+      iframe.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;border:none;';
+      iframe.setAttribute('allow', 'fullscreen; autoplay; clipboard-read; clipboard-write');
+      iframe.setAttribute('allowfullscreen', '');
+      doc.body.appendChild(iframe);
+
+      // Some browsers reset the title once the blank page settles, so set it again
+      setTimeout(() => { doc.title = title; }, 100);
+      armWindow(win);
+      win.focus();
+    }
+
+    // ---- building the lists ----
+    function closeAllMenus(except) {
+      document.querySelectorAll('.card-wrap.is-open').forEach((w) => {
+        if (w !== except) {
+          w.classList.remove('is-open');
+          w.querySelector('.tab-menu').classList.remove('open');
+        }
+      });
+    }
+
+    function initials(name) {
+      return name.replace(/[^A-Za-z0-9 ]/g, '').split(' ').filter(Boolean).slice(0, 2)
+        .map((w) => w[0].toUpperCase()).join('');
+    }
+
+    function buildMenu(item) {
+      const menu = document.createElement('div');
+      menu.className = 'tab-menu';
+      OPEN_MODES.forEach(([mode, label]) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = label;
+        b.addEventListener('click', () => { openTab(item.path, mode); closeAllMenus(); });
+        menu.appendChild(b);
+      });
+      return menu;
+    }
+
+    function wire(wrap, trigger, menu) {
+      trigger.addEventListener('click', () => {
+        const opening = !wrap.classList.contains('is-open');
+        closeAllMenus(wrap);
+        wrap.classList.toggle('is-open', opening);
+        menu.classList.toggle('open', opening);
+      });
+    }
+
+    function buildGames() {
+      const grid = document.getElementById('games');
+      const items = VAULT.games;
+
+      for (let i = 0; i < SLOTS; i++) {
+        const item = items[i];
+
+        if (!item) {
+          const soon = document.createElement('a');
+          soon.className = 'card soon';
+          soon.href = '#';
+          soon.style.setProperty('--i', i);
+          soon.innerHTML =
+            '<span class="thumb"><span class="mono">?</span></span>' +
+            '<span class="card-body"><span class="card-name">Coming soon</span></span>';
+          grid.appendChild(soon);
+          continue;
+        }
+
+        const wrap = document.createElement('div');
+        wrap.className = 'card-wrap';
+
+        const card = document.createElement('button');
+        card.className = 'card';
+        card.type = 'button';
+        card.style.setProperty('--i', i);
+        card.innerHTML =
+          '<span class="thumb"><span class="mono"></span></span>' +
+          '<span class="card-body"><span class="card-name"></span><span class="card-arrow">&rsaquo;</span></span>';
+        card.querySelector('.mono').textContent = initials(item.name);
+        card.querySelector('.card-name').textContent = item.name;
+
+        if (item.img) {
+          const img = new Image();
+          img.alt = '';
+          img.loading = 'lazy';
+          // only shows once it actually loads, so a missing file leaves the placeholder
+          img.addEventListener('error', () => img.remove());
+          img.src = item.img;
+          card.querySelector('.thumb').appendChild(img);
+        }
+
+        const menu = buildMenu(item);
+        wire(wrap, card, menu);
+        wrap.append(card, menu);
+        grid.appendChild(wrap);
+      }
+
+      document.getElementById('tally-games').textContent = items.length + '/' + SLOTS;
+    }
+
+    function buildTools() {
+      const list = document.getElementById('tools');
+      const items = VAULT.tools;
+
+      for (let i = 0; i < SLOTS; i++) {
+        const item = items[i];
+
+        if (!item) {
+          const soon = document.createElement('a');
+          soon.className = 'row soon';
+          soon.href = '#';
+          soon.style.setProperty('--i', i);
+          soon.innerHTML = '<span class="card-name">Coming soon</span>';
+          list.appendChild(soon);
+          continue;
+        }
+
+        const wrap = document.createElement('div');
+        wrap.className = 'card-wrap';
+
+        const row = document.createElement('button');
+        row.className = 'row';
+        row.type = 'button';
+        row.style.setProperty('--i', i);
+        row.innerHTML = '<span class="card-name"></span><span class="card-arrow">&rsaquo;</span>';
+        row.querySelector('.card-name').textContent = item.name;
+
+        const menu = buildMenu(item);
+        wire(wrap, row, menu);
+        wrap.append(row, menu);
+        list.appendChild(wrap);
+      }
+
+      document.getElementById('tally-tools').textContent = items.length + '/' + SLOTS;
+    }
+
+    buildGames();
+    buildTools();
+
+    // ---- Chalk Console ----
+    /* Systems the console knows about. `folders` are searched in order, so both
+       NES/  and roms/nes/  work. Art is drawn below; drop a photo at the `photo`
+       path to use that instead. */
+    const SYSTEMS = {
+      nes: {
+        label: 'NES', full: 'Nintendo Entertainment System', core: 'nes',
+        exts: ['nes', 'unf', 'unif'], folders: ['ROMS/NES', 'NES', 'nes', 'roms/nes'], photo: 'consoles/nes.png',
+      },
+      snes: {
+        label: 'SNES', full: 'Super Nintendo', core: 'snes',
+        exts: ['sfc', 'smc', 'fig', 'swc'], folders: ['ROMS/SNES', 'SNES', 'snes', 'roms/snes'], photo: 'consoles/snes.png',
+      },
+    };
+
+    // Flat vector drawings of the hardware, in the vault's colours.
+    const ART = {
+      nes: '<svg viewBox="0 0 240 150" xmlns="http://www.w3.org/2000/svg">' +
+        '<rect x="18" y="38" width="204" height="74" rx="4" fill="#d7d3c8"/>' +
+        '<rect x="18" y="38" width="204" height="10" rx="4" fill="#efece4"/>' +
+        '<rect x="18" y="100" width="204" height="12" rx="3" fill="#b8b4aa"/>' +
+        '<rect x="34" y="52" width="140" height="34" rx="2" fill="#8f8c84"/>' +
+        '<rect x="38" y="56" width="132" height="26" rx="1" fill="#6f6d67"/>' +
+        '<rect x="34" y="90" width="172" height="4" rx="2" fill="#a33b3b"/>' +
+        '<rect x="186" y="52" width="20" height="10" rx="2" fill="#8f8c84"/>' +
+        '<rect x="186" y="68" width="20" height="10" rx="2" fill="#8f8c84"/>' +
+        '<rect x="66" y="112" width="18" height="6" rx="2" fill="#2a2e34"/>' +
+        '<rect x="156" y="112" width="18" height="6" rx="2" fill="#2a2e34"/>' +
+        '</svg>',
+      snes: '<svg viewBox="0 0 240 150" xmlns="http://www.w3.org/2000/svg">' +
+        '<rect x="24" y="44" width="192" height="66" rx="10" fill="#d9d6cd"/>' +
+        '<rect x="24" y="44" width="192" height="12" rx="10" fill="#f0eee7"/>' +
+        '<rect x="70" y="40" width="100" height="26" rx="4" fill="#bfbcb3"/>' +
+        '<rect x="80" y="46" width="80" height="12" rx="2" fill="#6f6d67"/>' +
+        '<rect x="44" y="76" width="30" height="8" rx="4" fill="#8f8c84"/>' +
+        '<circle cx="120" cy="86" r="7" fill="#7b6fa8"/>' +
+        '<rect x="150" y="74" width="46" height="12" rx="6" fill="#8f8c84"/>' +
+        '<rect x="44" y="96" width="152" height="4" rx="2" fill="#a9a69d"/>' +
+        '<rect x="62" y="110" width="20" height="6" rx="3" fill="#2a2e34"/>' +
+        '<rect x="158" y="110" width="20" height="6" rx="3" fill="#2a2e34"/>' +
+        '</svg>',
+    };
+
+    function artFor(key, into) {
+      const sys = SYSTEMS[key];
+      into.innerHTML = ART[key] || '';
+      if (!sys.photo) return;
+      const img = new Image();     // a real photo, if one was added, wins
+      img.alt = '';
+      img.addEventListener('load', () => { into.innerHTML = ''; into.appendChild(img); });
+      img.src = sys.photo;
+    }
+
+    function prettyName(filename) {
+      const stem = filename
+        .replace(/\.[^.]+$/, '')
+        .replace(/[._-]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      // all-lowercase names read better title-cased; leave anything else alone
+      return stem === stem.toLowerCase()
+        ? stem.replace(/\w/g, (c) => c.toUpperCase())
+        : stem;
+    }
+
+    function systemFor(filename) {
+      const ext = filename.toLowerCase().split('.').pop();
+      for (const [key, sys] of Object.entries(SYSTEMS)) {
+        if (sys.exts.includes(ext)) return key;
+      }
+      return null;
+    }
+
+    /* The games on the site. Upload the ROM, then add a line here.
+       `file` is the path in the repo, exactly as it is spelled there. */
+    const library = {
+      nes: [
+        { name: 'Super Mario 2 DEMAKE',                file: 'ROMS/NES/Super Mario 2 DEMAKE.nes' },
+        { name: 'Super Mario Bros + Duck Hunt DEMAKE', file: 'ROMS/NES/Super Mario Bros + Duck Hunt DEMAKE .nes' },
+      ],
+      snes: [],
+    };
+
+    // the folder shown next to each game in the list
+    for (const games of Object.values(library)) {
+      games.forEach((g) => { g.where = g.where || g.file.replace(/\/[^/]+$/, ''); });
+    }
+
+    // ---- your own files, kept in this browser only ----
+    const DB_NAME = 'chalk-console';
+    let romDb = null;
+
+    function openDb() {
+      return new Promise((resolve) => {
+        if (romDb) return resolve(romDb);
+        const req = indexedDB.open(DB_NAME, 1);
+        req.onupgradeneeded = () => req.result.createObjectStore('roms', { keyPath: 'id' });
+        req.onsuccess = () => { romDb = req.result; resolve(romDb); };
+        req.onerror = () => resolve(null);
+      });
+    }
+
+    async function dbAll() {
+      const db = await openDb();
+      if (!db) return [];
+      return new Promise((resolve) => {
+        const req = db.transaction('roms').objectStore('roms').getAll();
+        req.onsuccess = () => resolve(req.result || []);
+        req.onerror = () => resolve([]);
+      });
+    }
+
+    async function dbPut(rec) {
+      const db = await openDb();
+      if (!db) return;
+      db.transaction('roms', 'readwrite').objectStore('roms').put(rec);
+    }
+
+    async function dbDelete(id) {
+      const db = await openDb();
+      if (!db) return;
+      db.transaction('roms', 'readwrite').objectStore('roms').delete(id);
+    }
+
+    async function myFilesFor(key) {
+      return (await dbAll()).filter((r) => r.system === key);
+    }
+
+    // ---- the player ----
+    const player = document.getElementById('player');
+    const playerFrame = document.getElementById('player-frame');
+    const playing = document.getElementById('playing');
+
+    function launch(key, name, payload) {
+      const sys = SYSTEMS[key] || SYSTEMS.nes;
+      playing.textContent = name + ' ';
+      const tag = document.createElement('span');
+      tag.className = 'sysname';
+      tag.textContent = '(' + sys.label + ')';
+      playing.appendChild(tag);
+
+      player.classList.add('on');
+      // fresh page every time, so switching games never leaves the old one running
+      playerFrame.src = 'console-player.html';
+      playerFrame.onload = () => {
+        try { armPanic(playerFrame.contentDocument, panicHere); } catch (e) {}
+        playerFrame.contentWindow.postMessage(
+          Object.assign({ type: 'boot', core: sys.core, name: name }, payload),
+          location.origin
+        );
+      };
+    }
+
+    function quitGame() {
+      player.classList.remove('on');
+      playerFrame.onload = null;
+      playerFrame.removeAttribute('src');
+    }
+
+    document.getElementById('quit-game').addEventListener('click', quitGame);
+    document.getElementById('go-full').addEventListener('click', () => {
+      if (playerFrame.requestFullscreen) playerFrame.requestFullscreen();
+    });
+
+    // ---- system picker ----
+    function buildSystems() {
+      const wrap = document.getElementById('systems');
+      wrap.innerHTML = '';
+      let total = 0;
+
+      Object.entries(SYSTEMS).forEach(([key, sys], i) => {
+        const count = library[key].length;
+        total += count;
+
+        const card = document.createElement('button');
+        card.className = 'system-card';
+        card.type = 'button';
+        card.style.setProperty('--i', i);
+        card.innerHTML =
+          '<span class="system-art"></span>' +
+          '<span class="system-meta"><span><span class="system-name"></span>' +
+          '<span class="system-sub"></span></span><span class="system-count"></span></span>';
+        card.querySelector('.system-name').textContent = sys.full;
+        card.querySelector('.system-sub').textContent = sys.label;
+        card.querySelector('.system-count').textContent = count === 1 ? '1 game' : count + ' games';
+        artFor(key, card.querySelector('.system-art'));
+        card.addEventListener('click', () => openLibrary(key));
+        wrap.appendChild(card);
+      });
+
+      document.getElementById('tally-console').textContent = total ? String(total) : '';
+      return total;
+    }
+
+    // ---- one system's list ----
+    let currentSystem = 'nes';
+
+    async function openLibrary(key) {
+      currentSystem = key;
+      const sys = SYSTEMS[key];
+      document.getElementById('systems-view').classList.add('off');
+      document.getElementById('library').classList.add('on');
+      document.getElementById('lib-name').textContent = sys.full;
+      document.getElementById('lib-sub').textContent = sys.folders.join('  /  ');
+      artFor(key, document.getElementById('lib-art'));
+      await renderList();
+    }
+
+    function closeLibrary() {
+      document.getElementById('library').classList.remove('on');
+      document.getElementById('systems-view').classList.remove('off');
+    }
+
+    document.getElementById('back-systems').addEventListener('click', closeLibrary);
+
+    async function renderList() {
+      const key = currentSystem;
+      const sys = SYSTEMS[key];
+      const body = document.getElementById('lib-body');
+      const mine = await myFilesFor(key);
+      body.innerHTML = '';
+
+      const rows = [
+        ...library[key].map((g) => ({ ...g, kind: 'site' })),
+        ...mine.map((r) => ({ name: r.name, where: 'your file', kind: 'mine', rec: r })),
+      ];
+
+      if (!rows.length) {
+        const empty = document.createElement('div');
+        empty.className = 'lib-empty';
+        empty.innerHTML =
+          'No ' + sys.label + ' games on the site yet.<br>' +
+          'Upload a ROM to <code>' + sys.folders[0] + '/</code> and add a line to the ' +
+          '<code>library</code> list near the top of vault.html. ' +
+          'Or load one off this computer with the button below.';
+        body.appendChild(empty);
+        return;
+      }
+
+      const list = document.createElement('div');
+      list.className = 'game-list';
+
+      rows.forEach((row, i) => {
+        const item = document.createElement('button');
+        item.className = 'game-item';
+        item.type = 'button';
+        item.style.setProperty('--i', i);
+        item.innerHTML =
+          '<span class="game-slot"></span><span class="game-name"></span><span class="game-where"></span>';
+        item.querySelector('.game-name').textContent = row.name;
+        item.querySelector('.game-where').textContent = row.kind === 'mine' ? 'your file' : row.where;
+
+        const slot = item.querySelector('.game-slot');
+        slot.textContent = String(i + 1).padStart(2, '0');
+        if (row.cover) {
+          const img = new Image();
+          img.alt = '';
+          img.addEventListener('load', () => { slot.textContent = ''; slot.appendChild(img); });
+          img.src = row.cover;
+        }
+
+        item.addEventListener('click', () => {
+          if (row.kind === 'mine') launch(key, row.name, { file: row.rec.blob });
+          else launch(key, row.name, { src: row.file });
+        });
+
+        if (row.kind === 'mine') {
+          item.addEventListener('contextmenu', async (e) => {
+            e.preventDefault();
+            await dbDelete(row.rec.id);
+            renderList();
+          });
+        }
+
+        list.appendChild(item);
+      });
+
+      body.appendChild(list);
+      document.getElementById('lib-hint').textContent =
+        mine.length ? 'Right-click one of your own files to forget it. Save states live in this browser.' : '';
+    }
+
+    // ---- taking in files ----
+    async function acceptFiles(files) {
+      for (const file of Array.from(files)) {
+        const key = systemFor(file.name) || currentSystem;
+        await dbPut({
+          id: file.name + ':' + file.size,
+          name: prettyName(file.name),
+          system: key,
+          blob: file,
+          added: Date.now(),
+        });
+      }
+      renderList();
+    }
+
+    const dropzone = document.getElementById('dropzone');
+    const romInput = document.getElementById('rom-input');
+
+    document.getElementById('load-rom').addEventListener('click', () => romInput.click());
+    romInput.addEventListener('change', () => { acceptFiles(romInput.files); romInput.value = ''; });
+
+    ['dragenter', 'dragover'].forEach((ev) => dropzone.addEventListener(ev, (e) => {
+      e.preventDefault();
+      dropzone.classList.add('dragging');
+    }));
+    ['dragleave', 'drop'].forEach((ev) => dropzone.addEventListener(ev, (e) => {
+      e.preventDefault();
+      dropzone.classList.remove('dragging');
+    }));
+    dropzone.addEventListener('drop', (e) => {
+      if (e.dataTransfer && e.dataTransfer.files.length) acceptFiles(e.dataTransfer.files);
+    });
+
+    let consoleBuilt = false;
+    function buildConsole() {
+      if (consoleBuilt) return;
+      consoleBuilt = true;
+
+      const total = buildSystems();
+      document.getElementById('console-hint').textContent = total
+        ? 'Pick a system. To add a game: upload the ROM, then add a line to the library list at the top of this file.'
+        : 'No games listed yet. Upload a ROM and add a line to the library list at the top of this file. The emulator itself goes in emulatorjs/data/.';
+    }
+
+    // ---- sidebar panels ----    // ---- sidebar panels ----
+    let chatFrame = null;
+
+    function showPanel(name) {
+      closeAllMenus();
+      document.querySelectorAll('.nav-btn').forEach((b) => {
+        b.classList.toggle('active', b.dataset.panel === name);
+      });
+      document.querySelectorAll('.panel').forEach((p) => {
+        p.classList.toggle('active', p.id === 'panel-' + name);
+      });
+
+      if (name === 'console') buildConsole();
+      else quitGame();
+
+      if (name === 'chat' && !chatFrame) {
+        // loaded on first visit so Firebase only connects when you actually chat
+        chatFrame = document.createElement('iframe');
+        chatFrame.className = 'chat-frame';
+        chatFrame.title = 'Chat';
+        chatFrame.src = 'vault-chat.html';
+        chatFrame.addEventListener('load', () => {
+          try { armPanic(chatFrame.contentDocument, panicHere); } catch (e) {}
+        });
+        document.getElementById('panel-chat').appendChild(chatFrame);
+      }
+    }
+
+    document.querySelectorAll('.nav-btn').forEach((b) => {
+      b.addEventListener('click', () => showPanel(b.dataset.panel));
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.card-wrap')) closeAllMenus();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !listeningFor) closeAllMenus();
+    });
+
+    // ---- settings: rebinding the panic key ----
+    const keycap = document.getElementById('panic-key');
+    const hint = document.getElementById('panic-hint');
+    const note = document.getElementById('panic-note');
+    let listeningFor = false;
+
+    function paintPanic() {
+      keycap.textContent = comboLabel(panicCombo);
+      note.textContent = 'panic: ' + comboLabel(panicCombo);
+    }
+
+    keycap.addEventListener('click', () => {
+      listeningFor = true;
+      keycap.classList.add('listening');
+      keycap.textContent = 'press any key…';
+      hint.textContent = 'Hold Ctrl, Alt or Shift for a combo. Esc cancels.';
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if (!listeningFor) return;
+      e.preventDefault();
+      e.stopPropagation();
+
+      if (['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) return;
+
+      listeningFor = false;
+      keycap.classList.remove('listening');
+
+      if (e.key !== 'Escape') {
+        panicCombo = { key: e.key, ctrl: e.ctrlKey, alt: e.altKey, shift: e.shiftKey, meta: e.metaKey };
+        try { localStorage.setItem(PANIC_STORE, JSON.stringify(panicCombo)); } catch (err) {}
+        hint.textContent = 'Saved. It works in games opened from here too.';
+      } else {
+        hint.textContent = 'Click the key to change it.';
+      }
+      paintPanic();
+    }, true);
+
+    document.getElementById('panic-reset').addEventListener('click', () => {
+      panicCombo = PANIC_DEFAULT;
+      try { localStorage.removeItem(PANIC_STORE); } catch (e) {}
+      hint.textContent = 'Back to the default key.';
+      paintPanic();
+    });
+
+    paintPanic();
+
+    // ---- fade up out of black ----
+    const curtain = document.getElementById('curtain');
+    setTimeout(() => curtain.remove(), 1200);
+  </script>
+</body>
+</html>
