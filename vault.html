@@ -1296,11 +1296,11 @@
     const SYSTEMS = {
       nes: {
         label: 'NES', full: 'Nintendo Entertainment System', core: 'nes',
-        exts: ['nes', 'unf', 'unif'], folders: ['NES', 'nes', 'roms/nes'], photo: 'consoles/nes.png',
+        exts: ['nes', 'unf', 'unif'], folders: ['ROMS/NES', 'NES', 'nes', 'roms/nes'], photo: 'consoles/nes.png',
       },
       snes: {
         label: 'SNES', full: 'Super Nintendo', core: 'snes',
-        exts: ['sfc', 'smc', 'fig', 'swc'], folders: ['SNES', 'snes', 'roms/snes'], photo: 'consoles/snes.png',
+        exts: ['sfc', 'smc', 'fig', 'swc'], folders: ['ROMS/SNES', 'SNES', 'snes', 'roms/snes'], photo: 'consoles/snes.png',
       },
     };
 
@@ -1362,13 +1362,14 @@
       return null;
     }
 
-    /* Finding games. First choice is roms.json, written by tools/scan_roms.py.
+    /* Finding games. First choice is roms.json, written by SCRIPTS/scan_roms.py into SCRIPTS/roms.json.
        Failing that, a plain directory listing (works on a local dev server). */
     const library = { nes: [], snes: [] };
 
     async function loadManifest() {
       try {
-        const res = await fetch('roms.json', { cache: 'no-store' });
+        let res = await fetch('SCRIPTS/roms.json', { cache: 'no-store' });
+        if (!res.ok) res = await fetch('roms.json', { cache: 'no-store' });
         if (!res.ok) return false;
         const data = await res.json();
         let any = false;
@@ -1577,7 +1578,7 @@
         empty.innerHTML =
           'No ' + sys.label + ' games found yet.<br>' +
           'Put files in <code>' + sys.folders[0] + '/</code> (a folder per game works too), then run ' +
-          '<code>python tools/scan_roms.py</code> so the site knows about them. ' +
+          '<code>python SCRIPTS/scan_roms.py</code> so the site knows about them. ' +
           'Or load one off this computer with the button below.';
         body.appendChild(empty);
         return;
@@ -1669,8 +1670,8 @@
 
       const total = buildSystems();
       document.getElementById('console-hint').textContent = total
-        ? 'Pick a system. Games are read from roms.json — re-run tools/scan_roms.py after adding files.'
-        : 'No games found yet. Put ROMs in NES/ or SNES/ (a folder per game is fine), run python tools/scan_roms.py, and they turn up here. The emulator itself goes in emulatorjs/data/.';
+        ? 'Pick a system. Games are read from SCRIPTS/roms.json — re-run SCRIPTS/scan_roms.py after adding files.'
+        : 'No games found yet. Put ROMs in NES/ or SNES/ (a folder per game is fine), run python SCRIPTS/scan_roms.py, and they turn up here. The emulator itself goes in emulatorjs/data/.';
     }
 
     // ---- sidebar panels ----    // ---- sidebar panels ----
