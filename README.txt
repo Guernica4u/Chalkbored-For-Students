@@ -1,15 +1,7 @@
 THIS IS A WEBSITE FOR SCHOOL
 
 GUIDE:
-Talk to Teacher is a chat where you can talk to other people using the website
-Resources has games and 100% vibecoded "apps"
-Tutorials gives you methods on how to get games and stuff on chromebooks
-
-RESOURCES:
-Bloons math is BTD4
-Basic Car Maintenance is Escape roads
-AeroDynamics is learn to fly
-All apps are as described
+Scroll down to the bottom and press the middle dot in chalkbored ' for students or type in the konami code to get to the good stuff
 
 
 ALL LINKS:
