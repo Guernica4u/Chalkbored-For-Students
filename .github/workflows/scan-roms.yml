@@ -1,0 +1,37 @@
+name: Scan ROMs
+
+# Runs on GitHub whenever a ROM is added, removed or renamed. It rebuilds
+# SCRIPTS/roms.json from what is actually in the repo and commits it back,
+# so the console's game list is never out of date.
+
+on:
+  push:
+    paths:
+      - 'ROMS/**'
+      - 'SCRIPTS/scan_roms.py'
+  workflow_dispatch:      # lets you run it by hand from the Actions tab
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Scan the ROM folders
+        run: python SCRIPTS/scan_roms.py
+
+      - name: Commit the new list
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add SCRIPTS/roms.json
+          git diff --staged --quiet && echo "Nothing changed." && exit 0
+          git commit -m "Update ROM list"
+          git push
