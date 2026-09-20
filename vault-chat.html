@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chat — ChalkBored Vault</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0c0d10;
+    --panel: #101216;
+    --panel-2: #171b20;
+    --ink: #e8e8e6;
+    --muted: #6f7680;
+    --line: #23262c;
+    --accent: #6ee7a8;
+    --accent-dim: #2f6b4f;
+    --danger: #e8776d;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .app {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    height: 100%;
+  }
+
+  /* ---------------- rail ---------------- */
+
+  .rail {
+    display: flex;
+    flex-direction: column;
+    background: var(--panel);
+    border-right: 1px solid var(--line);
+    overflow-y: auto;
+  }
+
+  .rail-section { padding: 1rem 0.9rem; border-bottom: 1px solid var(--line); }
+
+  .rail-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.7rem;
+    font-size: 0.62rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .mini {
+    background: none;
+    border: 1px solid var(--line);
+    color: var(--muted);
+    font: inherit;
+    font-size: 0.7rem;
+    padding: 0.15rem 0.4rem;
+    cursor: pointer;
+    transition: color 0.15s ease, border-color 0.15s ease;
+  }
+
+  .mini:hover, .mini:focus-visible { color: var(--accent); border-color: var(--accent-dim); outline: none; }
+
+  .list { display: flex; flex-direction: column; gap: 2px; }
+
+  .item {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    width: 100%;
+    padding: 0.45rem 0.55rem;
+    background: none;
+    border: none;
+    border-left: 2px solid transparent;
+    color: var(--muted);
+    font: inherit;
+    font-size: 0.8rem;
+    text-align: left;
+    cursor: pointer;
+    transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+  }
+
+  .item:hover, .item:focus-visible { color: var(--ink); background: var(--panel-2); outline: none; }
+  .item.on { color: var(--accent); background: #12171a; border-left-color: var(--accent); }
+  .item .lock { margin-left: auto; font-size: 0.66rem; color: var(--muted); }
+  .item .x {
+    margin-left: auto;
+    opacity: 0;
+    color: var(--muted);
+    font-size: 0.75rem;
+    transition: opacity 0.15s ease, color 0.15s ease;
+  }
+  .item:hover .x { opacity: 1; }
+  .item .x:hover { color: var(--danger); }
+
+  .rail-foot {
+    margin-top: auto;
+    padding: 0.9rem;
+    font-size: 0.7rem;
+    color: var(--muted);
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .me { display: flex; align-items: center; gap: 0.4rem; }
+  .me b { color: var(--ink); font-weight: 500; }
+  .tag {
+    font-size: 0.58rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    border: 1px solid var(--accent-dim);
+    padding: 0.05rem 0.3rem;
+  }
+
+  .link {
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--muted);
+    font: inherit;
+    font-size: 0.7rem;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .link:hover { color: var(--accent); }
+
+  /* ---------------- main ---------------- */
+
+  .main { display: flex; flex-direction: column; min-width: 0; }
+
+  header {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    padding: 0.85rem 1.25rem;
+    border-bottom: 1px solid var(--line);
+  }
+
+  header h1 {
+    margin: 0;
+    font-size: 0.82rem;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+  }
+
+  header h1 .dim { color: var(--muted); }
+  header .spacer { margin-left: auto; }
+
+  .presence { display: flex; align-items: center; gap: 0.4rem; font-size: 0.7rem; color: var(--muted); }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: pulse 2.4s infinite; }
+  @keyframes pulse { 50% { opacity: 0.4; } }
+
+  #messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+  }
+
+  .row { display: flex; flex-direction: column; gap: 0.2rem; max-width: 62ch; }
+  .row.mine { align-self: flex-end; align-items: flex-end; }
+
+  .meta { font-size: 0.62rem; color: var(--muted); display: flex; gap: 0.5rem; align-items: center; }
+  .meta .who { color: var(--accent-dim); }
+  .row.mine .meta .who { color: var(--muted); }
+
+  .bubble {
+    position: relative;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    padding: 0.5rem 0.75rem;
+    font-size: 0.82rem;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .row.mine .bubble { background: #13201a; border-color: var(--accent-dim); }
+
+  .kill {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font: inherit;
+    font-size: 0.66rem;
+    cursor: pointer;
+    opacity: 0;
+    padding: 0;
+    transition: opacity 0.15s ease, color 0.15s ease;
+  }
+
+  .row:hover .kill { opacity: 1; }
+  .kill:hover { color: var(--danger); }
+
+  .empty { margin: auto; font-size: 0.78rem; color: var(--muted); text-align: center; line-height: 1.8; }
+
+  form {
+    display: flex;
+    gap: 0.6rem;
+    padding: 0.9rem 1.25rem;
+    border-top: 1px solid var(--line);
+  }
+
+  input, button.primary {
+    font: inherit;
+    font-size: 0.82rem;
+  }
+
+  #text {
+    flex: 1;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    padding: 0.6rem 0.8rem;
+    outline: none;
+  }
+
+  #text:focus { border-color: var(--accent-dim); }
+  #text:disabled { color: var(--muted); }
+
+  button.primary {
+    background: #12211a;
+    border: 1px solid var(--accent-dim);
+    color: var(--accent);
+    padding: 0.6rem 1.2rem;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+  }
+
+  button.primary:hover { background: #16352a; }
+  button.primary:disabled { opacity: 0.4; cursor: default; }
+
+  /* ---------------- sign in ---------------- */
+
+  .gate {
+    position: fixed;
+    inset: 0;
+    z-index: 5;
+    display: grid;
+    place-items: center;
+    background: var(--bg);
+    padding: 2rem;
+  }
+
+  .gate.hide { display: none; }
+
+  .gate-box { width: min(320px, 100%); text-align: center; }
+  .gate h2 { margin: 0 0 0.5rem; font-size: 1.1rem; font-weight: 500; }
+  .gate p { margin: 0 0 1.5rem; font-size: 0.74rem; line-height: 1.7; color: var(--muted); }
+
+  .gate input {
+    width: 100%;
+    margin-bottom: 0.6rem;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    padding: 0.65rem 0.8rem;
+    outline: none;
+    text-align: center;
+  }
+
+  .gate input:focus { border-color: var(--accent-dim); }
+  .gate-row { display: flex; gap: 0.6rem; margin-top: 0.4rem; }
+  .gate-row button { flex: 1; cursor: pointer; padding: 0.65rem 0; }
+
+  .ghost {
+    background: none;
+    border: 1px solid var(--line);
+    color: var(--muted);
+    font: inherit;
+    font-size: 0.82rem;
+    transition: color 0.2s ease, border-color 0.2s ease;
+  }
+
+  .ghost:hover { color: var(--ink); border-color: var(--accent-dim); }
+
+  .err { min-height: 1.2rem; margin-top: 0.7rem; font-size: 0.72rem; color: var(--danger); }
+  .note { font-size: 0.72rem; color: var(--muted); }
+
+  /* ---------------- prompt ---------------- */
+
+  .veil {
+    position: fixed;
+    inset: 0;
+    z-index: 8;
+    display: grid;
+    place-items: center;
+    background: rgba(5, 6, 8, 0.75);
+    padding: 2rem;
+  }
+
+  .veil.hide { display: none; }
+
+  .card {
+    width: min(340px, 100%);
+    background: var(--panel);
+    border: 1px solid var(--accent-dim);
+    padding: 1.25rem;
+  }
+
+  .card h3 { margin: 0 0 0.4rem; font-size: 0.9rem; font-weight: 500; }
+  .card p { margin: 0 0 1rem; font-size: 0.74rem; line-height: 1.6; color: var(--muted); }
+  .card input { width: 100%; margin-bottom: 0.6rem; background: var(--panel-2); border: 1px solid var(--line); color: var(--ink); padding: 0.6rem 0.7rem; outline: none; }
+  .card .gate-row { margin-top: 0.8rem; }
+  .card label { display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; color: var(--muted); margin-bottom: 0.7rem; cursor: pointer; }
+
+  @media (max-width: 680px) {
+    .app { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+    .rail { flex-direction: row; overflow-x: auto; border-right: none; border-bottom: 1px solid var(--line); }
+    .rail-section { border-bottom: none; border-right: 1px solid var(--line); min-width: 190px; }
+    .rail-foot { display: none; }
+  }
+
+  ::-webkit-scrollbar { width: 7px; height: 7px; }
+  ::-webkit-scrollbar-thumb { background: var(--line); }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <nav class="rail">
+    <div class="rail-section">
+      <div class="rail-head"><span>Rooms</span><button class="mini" id="new-room" type="button">+ room</button></div>
+      <div class="list" id="rooms"></div>
+    </div>
+
+    <div class="rail-section">
+      <div class="rail-head"><span>Channels</span><button class="mini" id="new-channel" type="button" hidden>+ channel</button></div>
+      <div class="list" id="channels"></div>
+    </div>
+
+    <div class="rail-foot">
+      <span class="me">you: <b id="me-name">—</b><span class="tag" id="me-tag" hidden>mod</span></span>
+      <button class="link" id="become-mod" type="button">Moderator login</button>
+      <button class="link" id="mod-tools" type="button" hidden>Ban / unban someone</button>
+      <button class="link" id="room-mods" type="button" hidden>Add a room mod</button>
+      <button class="link" id="sign-out" type="button">Sign out</button>
+    </div>
+  </nav>
+
+  <div class="main">
+    <header>
+      <h1><span id="room-name">—</span><span class="dim" id="channel-name"></span></h1>
+      <span class="spacer"></span>
+      <span class="presence"><span class="dot"></span><span id="online">—</span></span>
+      <button class="mini" id="delete-room" type="button" hidden>delete room</button>
+    </header>
+
+    <div id="messages"></div>
+
+    <form id="composer" autocomplete="off">
+      <input id="text" maxlength="500" placeholder="Say something…" disabled>
+      <button class="primary" type="submit" disabled>Send</button>
+    </form>
+  </div>
+</div>
+
+<div class="gate" id="gate">
+  <div class="gate-box">
+    <h2>ChalkBored Chat</h2>
+    <p>Pick a name and a password. No email, no verification — the password is hashed on the server and never leaves your browser in the clear.</p>
+    <input id="u" maxlength="20" placeholder="Username" autocomplete="username">
+    <input id="p" type="password" placeholder="Password" autocomplete="current-password">
+    <div class="gate-row">
+      <button class="primary" id="login" type="button">Log in</button>
+      <button class="ghost" id="register" type="button">Register</button>
+    </div>
+    <p class="err" id="gate-err"></p>
+  </div>
+</div>
+
+<div class="veil hide" id="veil">
+  <div class="card">
+    <h3 id="ask-title"></h3>
+    <p id="ask-text"></p>
+    <label id="ask-check-wrap" hidden><input type="checkbox" id="ask-check" style="width:auto;margin:0"> <span id="ask-check-label"></span></label>
+    <input id="ask-1" autocomplete="off">
+    <input id="ask-2" autocomplete="off" hidden>
+    <p class="err" id="ask-err"></p>
+    <div class="gate-row">
+      <button class="ghost" id="ask-cancel" type="button">Cancel</button>
+      <button class="primary" id="ask-ok" type="button">OK</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+/* ------------------------------------------------------------------ setup
+   Paste your project's two public values here. Both are safe in a public
+   repo: the anon key only lets people do what the database rules allow. */
+const SUPABASE_URL = 'sb_publishable_CBXtSVX-0r8a0GGV9B4znA_8JXfxaOD';
+const SUPABASE_ANON_KEY = 'sb_secret_BR7vJYEzeNpCz66igfusuA_VynENVj8';
+
+// usernames become addresses behind the scenes, so nobody has to give an email
+const MAIL_DOMAIN = 'users.chalkbored.win';
+
+const CONFIGURED = !SUPABASE_URL.startsWith('PASTE') && !SUPABASE_ANON_KEY.startsWith('PASTE');
+const db = CONFIGURED ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+
+const $ = (id) => document.getElementById(id);
+const state = { me: null, rooms: [], room: null, channels: [], channel: null, membership: {}, presence: null, feed: null };
+
+// ------------------------------------------------------------------ prompt
+function ask({ title, text, placeholder, second, check }) {
+  return new Promise((resolve) => {
+    $('ask-title').textContent = title;
+    $('ask-text').textContent = text || '';
+    $('ask-err').textContent = '';
+    $('ask-1').value = '';
+    $('ask-1').placeholder = placeholder || '';
+    $('ask-1').type = (placeholder || '').toLowerCase().includes('password') ? 'password' : 'text';
+    $('ask-2').value = '';
+    $('ask-2').hidden = !second;
+    if (second) { $('ask-2').placeholder = second; $('ask-2').type = 'password'; }
+    $('ask-check-wrap').hidden = !check;
+    $('ask-check').checked = false;
+    if (check) $('ask-check-label').textContent = check;
+    $('veil').classList.remove('hide');
+    $('ask-1').focus();
+
+    const done = (value) => {
+      $('veil').classList.add('hide');
+      $('ask-ok').onclick = null;
+      $('ask-cancel').onclick = null;
+      resolve(value);
+    };
+    $('ask-ok').onclick = () => done({ one: $('ask-1').value.trim(), two: $('ask-2').value, checked: $('ask-check').checked });
+    $('ask-cancel').onclick = () => done(null);
+  });
+}
+
+// ------------------------------------------------------------------ signing in
+async function loadMe() {
+  const { data: { user } } = await db.auth.getUser();
+  if (!user) return null;
+  const { data } = await db.from('profiles').select('id, username, is_mod, banned').eq('id', user.id).single();
+  return data || null;
+}
+
+async function signIn(mode) {
+  const username = $('u').value.trim();
+  const password = $('p').value;
+  const err = $('gate-err');
+  err.textContent = '';
+
+  if (!/^[A-Za-z0-9_.-]{2,20}$/.test(username)) {
+    err.textContent = 'Usernames: 2–20 characters, letters, numbers, _ . - only.';
+    return;
+  }
+  if (password.length < 6) { err.textContent = 'Passwords need at least 6 characters.'; return; }
+
+  const email = username.toLowerCase() + '@' + MAIL_DOMAIN;
+  const res = mode === 'register'
+    ? await db.auth.signUp({ email, password, options: { data: { username } } })
+    : await db.auth.signInWithPassword({ email, password });
+
+  if (res.error) {
+    err.textContent = res.error.message.includes('already registered')
+      ? 'That name is taken.'
+      : res.error.message.includes('Invalid login')
+        ? 'Wrong name or password.'
+        : res.error.message;
+    return;
+  }
+  await start();
+}
+
+$('login').onclick = () => signIn('login');
+$('register').onclick = () => signIn('register');
+$('p').addEventListener('keydown', (e) => { if (e.key === 'Enter') signIn('login'); });
+
+$('sign-out').onclick = async () => { await db.auth.signOut(); location.reload(); };
+
+// ------------------------------------------------------------------ rooms
+async function loadRooms() {
+  const [{ data: rooms }, { data: mine }] = await Promise.all([
+    db.from('rooms').select('id, name, is_private, is_global, owner_id').order('is_global', { ascending: false }).order('name'),
+    db.from('room_members').select('room_id, role').eq('user_id', state.me.id),
+  ]);
+
+  state.rooms = rooms || [];
+  state.membership = {};
+  (mine || []).forEach((m) => { state.membership[m.room_id] = m.role; });
+  paintRooms();
+
+  if (!state.room && state.rooms.length) {
+    const first = state.rooms.find((r) => r.is_global) || state.rooms[0];
+    openRoom(first);
+  }
+}
+
+function paintRooms() {
+  const wrap = $('rooms');
+  wrap.innerHTML = '';
+
+  state.rooms.forEach((room) => {
+    const joined = !!state.membership[room.id];
+    const btn = document.createElement('button');
+    btn.className = 'item' + (state.room && state.room.id === room.id ? ' on' : '');
+    btn.type = 'button';
+    btn.innerHTML = '<span></span>';
+    btn.querySelector('span').textContent = room.name;
+
+    if (room.is_private && !joined && !state.me.is_mod) {
+      const lock = document.createElement('span');
+      lock.className = 'lock';
+      lock.textContent = 'locked';
+      btn.appendChild(lock);
+    }
+
+    btn.onclick = () => openRoom(room);
+    wrap.appendChild(btn);
+  });
+}
+
+async function openRoom(room) {
+  const joined = !!state.membership[room.id];
+
+  if (!joined) {
+    let password = null;
+    if (room.is_private && !state.me.is_mod) {
+      const answer = await ask({ title: room.name, text: 'This room is private.', placeholder: 'Room password' });
+      if (!answer) return;
+      password = answer.one;
+    }
+    const { data: ok, error } = await db.rpc('join_room', { p_room: room.id, p_password: password });
+    if (error) return alert(error.message);
+    if (!ok) return alert('Wrong password.');
+    state.membership[room.id] = 'member';
+  }
+
+  state.room = room;
+  state.channel = null;
+  $('room-name').textContent = room.name;
+  $('delete-room').hidden = !(state.me.is_mod || room.owner_id === state.me.id) || room.is_global;
+  $('room-mods').hidden = !(state.me.is_mod || state.membership[room.id] === 'owner');
+  $('new-channel').hidden = !canAddChannel(room);
+  paintRooms();
+  await loadChannels();
+  watchPresence();
+}
+
+function canAddChannel(room) {
+  if (state.me.is_mod) return true;
+  if (room.is_global) return false;
+  return ['owner', 'mod'].includes(state.membership[room.id]);
+}
+
+function canManage(room) {
+  return state.me.is_mod || ['owner', 'mod'].includes(state.membership[room.id]);
+}
+
+$('new-room').onclick = async () => {
+  const answer = await ask({
+    title: 'New room',
+    text: state.me.is_mod
+      ? 'Leave the password blank for a public room.'
+      : 'Anyone with the password can join. You get one private room.',
+    placeholder: 'Room name',
+    second: 'Room password',
+  });
+  if (!answer || !answer.one) return;
+
+  const isPrivate = !!answer.two || !state.me.is_mod;
+  const { error } = await db.rpc('create_room', { p_name: answer.one, p_private: isPrivate, p_password: answer.two || null });
+  if (error) return alert(error.message);
+  await loadRooms();
+};
+
+$('delete-room').onclick = async () => {
+  if (!state.room || !confirm('Delete "' + state.room.name + '" and everything in it?')) return;
+  const { error } = await db.from('rooms').delete().eq('id', state.room.id);
+  if (error) return alert(error.message);
+  state.room = null;
+  await loadRooms();
+};
+
+$('room-mods').onclick = async () => {
+  const answer = await ask({
+    title: 'Room moderators',
+    text: 'A room mod can add and delete channels here, and delete anyone’s messages in this room.',
+    placeholder: 'Username',
+    check: 'Remove instead (back to member)',
+  });
+  if (!answer || !answer.one) return;
+  const { error } = await db.rpc('set_room_role', {
+    p_room: state.room.id, p_username: answer.one, p_role: answer.checked ? 'member' : 'mod',
+  });
+  alert(error ? error.message : (answer.checked ? answer.one + ' is a member again.' : answer.one + ' is now a room mod.'));
+};
+
+// ------------------------------------------------------------------ channels
+async function loadChannels() {
+  const { data } = await db.from('channels').select('id, name, room_id').eq('room_id', state.room.id).order('created_at');
+  state.channels = data || [];
+  paintChannels();
+  if (state.channels.length) openChannel(state.channels[0]);
+  else { state.channel = null; $('channel-name').textContent = ''; renderEmpty('No channels in this room yet.'); lockComposer(true); }
+}
+
+function paintChannels() {
+  const wrap = $('channels');
+  wrap.innerHTML = '';
+
+  state.channels.forEach((ch) => {
+    const btn = document.createElement('button');
+    btn.className = 'item' + (state.channel && state.channel.id === ch.id ? ' on' : '');
+    btn.type = 'button';
+    btn.innerHTML = '<span></span>';
+    btn.querySelector('span').textContent = '# ' + ch.name;
+    btn.onclick = () => openChannel(ch);
+
+    if (canManage(state.room)) {
+      const x = document.createElement('span');
+      x.className = 'x';
+      x.textContent = '×';
+      x.title = 'Delete channel';
+      x.onclick = async (e) => {
+        e.stopPropagation();
+        if (!confirm('Delete #' + ch.name + '?')) return;
+        const { error } = await db.from('channels').delete().eq('id', ch.id);
+        if (error) alert(error.message); else loadChannels();
+      };
+      btn.appendChild(x);
+    }
+    wrap.appendChild(btn);
+  });
+}
+
+$('new-channel').onclick = async () => {
+  const answer = await ask({ title: 'New channel', text: 'In ' + state.room.name + '.', placeholder: 'Channel name' });
+  if (!answer || !answer.one) return;
+  const { error } = await db.from('channels').insert({ room_id: state.room.id, name: answer.one, created_by: state.me.id });
+  if (error) return alert(error.message);
+  loadChannels();
+};
+
+// ------------------------------------------------------------------ messages
+async function openChannel(ch) {
+  state.channel = ch;
+  $('channel-name').textContent = '  /  # ' + ch.name;
+  paintChannels();
+  lockComposer(false);
+
+  const { data } = await db
+    .from('messages')
+    .select('id, body, created_at, user_id, profiles(username)')
+    .eq('channel_id', ch.id)
+    .order('id', { ascending: false })
+    .limit(80);
+
+  const rows = (data || []).reverse();
+  $('messages').innerHTML = '';
+  if (!rows.length) renderEmpty('Nothing here yet. Say something.');
+  rows.forEach(addMessage);
+  scrollDown();
+  watchFeed();
+}
+
+function renderEmpty(text) {
+  const p = document.createElement('p');
+  p.className = 'empty';
+  p.textContent = text;
+  $('messages').innerHTML = '';
+  $('messages').appendChild(p);
+}
+
+function addMessage(m) {
+  const empty = $('messages').querySelector('.empty');
+  if (empty) empty.remove();
+
+  const mine = m.user_id === state.me.id;
+  const row = document.createElement('div');
+  row.className = 'row' + (mine ? ' mine' : '');
+  row.dataset.id = m.id;
+
+  const meta = document.createElement('div');
+  meta.className = 'meta';
+  const who = document.createElement('span');
+  who.className = 'who';
+  who.textContent = (m.profiles && m.profiles.username) || (mine ? state.me.username : 'someone');
+  const when = document.createElement('span');
+  when.textContent = new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  meta.append(who, when);
+
+  if (mine || canManage(state.room)) {
+    const kill = document.createElement('button');
+    kill.className = 'kill';
+    kill.type = 'button';
+    kill.textContent = 'delete';
+    kill.onclick = async () => {
+      const { error } = await db.from('messages').delete().eq('id', m.id);
+      if (error) alert(error.message);
+    };
+    meta.appendChild(kill);
+  }
+
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.textContent = m.body;
+
+  row.append(meta, bubble);
+  $('messages').appendChild(row);
+}
+
+function scrollDown() { $('messages').scrollTop = $('messages').scrollHeight; }
+
+function lockComposer(locked) {
+  $('text').disabled = locked;
+  $('composer').querySelector('button').disabled = locked;
+}
+
+$('composer').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const body = $('text').value.trim();
+  if (!body || !state.channel) return;
+  $('text').value = '';
+  const { error } = await db.from('messages').insert({ channel_id: state.channel.id, user_id: state.me.id, body });
+  if (error) { alert(error.message); $('text').value = body; }
+});
+
+// live messages for the open channel
+function watchFeed() {
+  if (state.feed) db.removeChannel(state.feed);
+  state.feed = db
+    .channel('feed:' + state.channel.id)
+    .on('postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'messages', filter: 'channel_id=eq.' + state.channel.id },
+      async ({ new: row }) => {
+        if (row.user_id === state.me.id) {
+          addMessage({ ...row, profiles: { username: state.me.username } });
+        } else {
+          const { data } = await db.from('profiles').select('username').eq('id', row.user_id).single();
+          addMessage({ ...row, profiles: data });
+        }
+        scrollDown();
+      })
+    .on('postgres_changes',
+      { event: 'DELETE', schema: 'public', table: 'messages' },
+      ({ old: row }) => {
+        const el = $('messages').querySelector('[data-id="' + row.id + '"]');
+        if (el) el.remove();
+      })
+    .subscribe();
+}
+
+// who's in the room
+function watchPresence() {
+  if (state.presence) db.removeChannel(state.presence);
+  state.presence = db.channel('who:' + state.room.id, { config: { presence: { key: state.me.id } } });
+
+  state.presence
+    .on('presence', { event: 'sync' }, () => {
+      const count = Object.keys(state.presence.presenceState()).length;
+      $('online').textContent = count + (count === 1 ? ' here' : ' here');
+      // the vault's Home app shows this too
+      if (window.parent !== window) {
+        window.parent.postMessage({ type: 'presence', count }, location.origin);
+      }
+    })
+    .subscribe(async (status) => {
+      if (status === 'SUBSCRIBED') await state.presence.track({ username: state.me.username });
+    });
+}
+
+// ------------------------------------------------------------------ moderator
+$('become-mod').onclick = async () => {
+  const answer = await ask({ title: 'Moderator login', text: 'Type the moderator password.', placeholder: 'Password' });
+  if (!answer || !answer.one) return;
+  const { data: ok, error } = await db.rpc('claim_mod', { p_password: answer.one });
+  if (error) return alert(error.message);
+  if (!ok) return alert('Wrong password.');
+  state.me.is_mod = true;
+  paintMe();
+  await loadRooms();
+};
+
+$('mod-tools').onclick = async () => {
+  const answer = await ask({
+    title: 'Ban someone',
+    text: 'A banned account can’t post anywhere.',
+    placeholder: 'Username',
+    check: 'Unban instead',
+  });
+  if (!answer || !answer.one) return;
+  const { error } = await db.rpc('set_banned', { p_username: answer.one, p_banned: !answer.checked });
+  alert(error ? error.message : answer.one + (answer.checked ? ' is unbanned.' : ' is banned.'));
+};
+
+function paintMe() {
+  $('me-name').textContent = state.me.username;
+  $('me-tag').hidden = !state.me.is_mod;
+  $('mod-tools').hidden = !state.me.is_mod;
+  $('become-mod').hidden = state.me.is_mod;
+}
+
+// ------------------------------------------------------------------ go
+async function start() {
+  const me = await loadMe();
+  if (!me) { $('gate').classList.remove('hide'); return; }
+
+  state.me = me;
+  $('gate').classList.add('hide');
+  paintMe();
+
+  if (me.banned) {
+    renderEmpty('Your account is banned.');
+    lockComposer(true);
+  }
+
+  await loadRooms();
+
+  // rooms and channels appearing or vanishing for everyone
+  db.channel('structure')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms' }, () => loadRooms())
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'channels' }, () => { if (state.room) loadChannels(); })
+    .subscribe();
+}
+
+if (!CONFIGURED) {
+  $('gate').classList.remove('hide');
+  $('gate-err').textContent = 'Not connected yet — paste the project URL and anon key near the top of this file.';
+  $('login').disabled = true;
+  $('register').disabled = true;
+} else {
+  start();
+}
+</script>
+</body>
+</html>
