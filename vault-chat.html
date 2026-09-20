@@ -476,7 +476,7 @@ async function signIn(mode) {
 
   if (res.error) {
     err.textContent = res.error.message.includes('already registered')
-      ? 'That name is taken.'
+      ? 'That name already has an account — use Log in.'
       : res.error.message.includes('Invalid login')
         ? 'Wrong name or password.'
         : res.error.message;
@@ -816,8 +816,26 @@ function paintMe() {
 
 // ------------------------------------------------------------------ go
 async function start() {
-  const me = await loadMe();
-  if (!me) { $('gate').classList.remove('hide'); return; }
+  const { data: { user } } = await db.auth.getUser();
+  if (!user) { $('gate').classList.remove('hide'); return; }
+
+  // signed in, but is the database actually set up?
+  const { data: me, error } = await db
+    .from('profiles').select('id, username, is_mod, banned').eq('id', user.id).maybeSingle();
+
+  if (error) {
+    $('gate').classList.remove('hide');
+    $('gate-err').textContent = error.message.includes('schema cache')
+      ? 'Signed in, but the database tables are missing. Run supabase-schema.sql.'
+      : error.message;
+    return;
+  }
+
+  if (!me) {
+    $('gate').classList.remove('hide');
+    $('gate-err').textContent = 'Signed in, but this account has no profile row yet. Run the backfill SQL.';
+    return;
+  }
 
   state.me = me;
   $('gate').classList.add('hide');
