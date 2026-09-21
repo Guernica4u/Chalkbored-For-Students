@@ -1294,6 +1294,131 @@
 
   .ver { color: var(--accent-dim); }
 
+  /* ---------------- plain look (experimental) ----------------
+     Strips the terminal dressing: system font, grey palette, no glow,
+     no sheen, no lifting on hover, lists instead of cover cards. */
+
+  body.plain {
+    --bg: #17191c;
+    --panel: #1e2125;
+    --panel-hover: #24282d;
+    --rail: #1b1e22;
+    --ink: #e4e6e8;
+    --muted: #888e96;
+    --line: #2c3036;
+    --accent: #7ea6c9;
+    --accent-dim: #4a657d;
+    font-family: -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  }
+
+  body.plain,
+  body.plain input,
+  body.plain button,
+  body.plain .search,
+  body.plain .keycap {
+    font-family: -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  }
+
+  /* no scanlines, no blinking block, no drawn rule */
+  body.plain::after,
+  body.plain h1 .cursor,
+  body.plain .rule { display: none; }
+
+  body.plain h1 {
+    font-weight: 600;
+    letter-spacing: 0;
+    font-size: clamp(1.3rem, 2.4vw, 1.7rem);
+  }
+
+  body.plain .topbar { padding-top: 1.5rem; padding-bottom: 1.1rem; }
+
+  /* labels read as words, not machine output */
+  body.plain .panel-lead,
+  body.plain .home-label,
+  body.plain .shelf-label,
+  body.plain .section-head h2 {
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  body.plain .panel-lead::before,
+  body.plain .col h2::before { content: ''; }
+
+  /* nothing floats, glows or slides */
+  body.plain * { box-shadow: none !important; }
+
+  body.plain .card,
+  body.plain .row,
+  body.plain .tile,
+  body.plain .rec,
+  body.plain .system-card,
+  body.plain .nav-btn,
+  body.plain .back-link,
+  body.plain .game-item { animation: none !important; opacity: 1; transform: none !important; }
+
+  body.plain .thumb::after,
+  body.plain .system-card::before { display: none; }
+
+  body.plain .card:hover,
+  body.plain .row:hover,
+  body.plain .tile:hover,
+  body.plain .rec:hover,
+  body.plain .system-card:hover { transform: none; }
+
+  /* games become a list, like everything else */
+  body.plain .cards { display: block; }
+  body.plain .card-wrap + .card-wrap,
+  body.plain .cards > .card + .card { border-top: 1px solid var(--line); }
+
+  body.plain .card {
+    border: none;
+    background: none;
+    padding: 0;
+  }
+
+  body.plain .card .thumb { display: none; }
+  body.plain .card-body { padding: 0.6rem 0.5rem; }
+  body.plain .card:hover { background: var(--panel-hover); }
+  body.plain .card:hover .card-name { color: var(--ink); }
+  body.plain .card-arrow { display: none; }
+  body.plain .card.soon { opacity: 0.45; }
+
+  body.plain .row,
+  body.plain .tile,
+  body.plain .rec,
+  body.plain .game-item {
+    border-radius: 0;
+    background: var(--panel);
+  }
+
+  body.plain .row:hover,
+  body.plain .rec:hover,
+  body.plain .game-item:hover,
+  body.plain .tile:hover { background: var(--panel-hover); color: var(--ink); padding-left: inherit; }
+
+  /* sidebar: a quiet marker instead of a green bar */
+  body.plain .nav-btn.active { color: var(--ink); background: var(--panel-hover); border-left-color: var(--accent); }
+  body.plain .brand .dim { color: var(--muted); }
+  body.plain .brand-sub { color: var(--muted); letter-spacing: 0.08em; }
+
+  /* home hero stops being a light show */
+  body.plain .home-hero {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    padding: 1.5rem;
+  }
+
+  body.plain .home-eyebrow { color: var(--muted); letter-spacing: 0; text-transform: none; font-size: 0.8rem; }
+  body.plain .home-title { font-size: clamp(1.2rem, 2.2vw, 1.5rem); font-weight: 600; letter-spacing: 0; }
+
+  body.plain .led,
+  body.plain .dot { animation: none; }
+
+  body.plain .thumb .mono { color: var(--muted); }
+
   footer {
     padding: 1rem 2.25rem;
     border-top: 1px solid var(--line);
@@ -1506,6 +1631,14 @@
               </div>
               <button class="switch" id="exp-home" type="button" role="switch" aria-checked="false" aria-label="Enable the Home app"></button>
             </div>
+
+            <div class="setting">
+              <div>
+                <h3>Plain look</h3>
+                <p>Drops the terminal styling: system font, grey palette, no animations, games as a list. Looks like a tool someone built, not a product.</p>
+              </div>
+              <button class="switch" id="exp-plain" type="button" role="switch" aria-checked="false" aria-label="Enable the plain look"></button>
+            </div>
           </div>
         </section>
       </div>
@@ -1518,8 +1651,8 @@
     // ---- What's in the vault. `img` is optional: drop a screenshot in previews/ ----
     const VAULT = {
       games: [
-        { name: 'Learn to Fly 3', path: 'AeroDynamics-Loader.html',                 img: 'previews/learn-to-fly-3.png' },
-        { name: 'BTD4',           path: 'Bloons%20Math%20Loader.html',              img: 'previews/btd4.png' },
+        { name: 'Learn to Fly 3', path: 'GAMES/AeroDynamics-Loader.html',           img: 'previews/learn-to-fly-3.png' },
+        { name: 'BTD4',           path: 'GAMES/Bloons%20Math%20Loader.html',        img: 'previews/btd4.png' },
         { name: 'Escape Roads',   path: 'Car maintenance/index.html',               img: 'previews/escape-roads.png' },
         { name: 'Final Earth 2',  path: 'Earth and our Future/Earth/index.html',    img: 'previews/final-earth-2.png' },
         { name: 'Learn Archery',  path: 'GAMES/Learn-Archery.html',                  img: 'previews/learn-archery.png' },
@@ -1895,7 +2028,9 @@
         { name: 'Super Mario 2 DEMAKE',                file: 'ROMS/NES/Super Mario 2 DEMAKE.nes' },
         { name: 'Super Mario Bros + Duck Hunt DEMAKE', file: 'ROMS/NES/Super Mario Bros + Duck Hunt DEMAKE .nes' },
       ],
-      snes: [],
+      snes: [
+        { name: 'Pokemon Stadium DEMAKE', file: 'ROMS/SNES/Pokemon Stadium DEMAKE.sfc' },
+      ],
     };
 
     // the folder shown next to each game in the list
@@ -2153,7 +2288,7 @@
 
     // ---- settings that stick ----
     const SETTINGS_STORE = 'vault-settings';
-    const DEFAULT_SETTINGS = { home: false, layout: 'default', rail: 'open' };
+    const DEFAULT_SETTINGS = { home: false, plain: false, layout: 'default', rail: 'open' };
     let settings = Object.assign({}, DEFAULT_SETTINGS);
 
     try {
@@ -2168,10 +2303,11 @@
     function applySettings() {
       document.getElementById('nav-home').hidden = !settings.home;
       document.body.classList.toggle('layout-movie', settings.layout === 'movie');
+      document.body.classList.toggle('plain', !!settings.plain);
       document.body.classList.toggle('rail-collapsed', settings.rail === 'collapsed');
 
-      const sw = document.getElementById('exp-home');
-      sw.setAttribute('aria-checked', String(!!settings.home));
+      document.getElementById('exp-home').setAttribute('aria-checked', String(!!settings.home));
+      document.getElementById('exp-plain').setAttribute('aria-checked', String(!!settings.plain));
       document.querySelectorAll('#layout-choice button').forEach((b) => {
         b.classList.toggle('on', b.dataset.layout === settings.layout);
       });
@@ -2443,6 +2579,12 @@
       applySettings();
       if (settings.home) showPanel('home');
       else if (document.getElementById('panel-home').classList.contains('active')) showPanel('games');
+    });
+
+    document.getElementById('exp-plain').addEventListener('click', () => {
+      settings.plain = !settings.plain;
+      saveSettings();
+      applySettings();
     });
 
     // layout picker
