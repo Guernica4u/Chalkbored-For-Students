@@ -7,7 +7,7 @@ Scroll down to the bottom and press the middle dot in chalkbored ' for students 
 ALL LINKS:
 CLOUDFLARE: chalkbored.win, https://chalkbored.guernica4u.workers.dev/
 
-VERCEL: https://chalkbored-for-students.vercel.app/, https://chalkbored-git-main-guernica4u.vercel.app/
+VERCEL: https://chalkbored-for-students.vercel.app/
 
 NETLIFY (old): https://chalkbored.netlify.app/
 
