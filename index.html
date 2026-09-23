@@ -443,7 +443,7 @@
   </section>
 
   <footer>
-    ChalkBored <a class="secret-dot" id="secret-dot" href="vault.html" aria-label="Vault">&middot;</a> built for students, kept free
+    ChalkBored <a class="secret-dot" id="secret-dot" href="study-hall.html" aria-label="Study hall">&middot;</a> built for students, kept free
   </footer>
 
   <div class="secret-flash" id="secret-flash" aria-hidden="true"></div>
@@ -515,9 +515,9 @@
     const flash = document.getElementById('secret-flash');
 
     function enterArcade() {
-      if (prefersReducedMotion) { window.location.href = 'vault.html'; return; }
+      if (prefersReducedMotion) { window.location.href = 'study-hall.html'; return; }
       flash.classList.add('on');
-      setTimeout(() => { window.location.href = 'vault.html'; }, 450);
+      setTimeout(() => { window.location.href = 'study-hall.html'; }, 450);
     }
 
     document.getElementById('secret-dot').addEventListener('click', (e) => {

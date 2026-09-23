@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Link Checker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0c0d10;
+    --panel: #101216;
+    --panel-2: #171b20;
+    --ink: #e8e8e6;
+    --muted: #6f7680;
+    --line: #23262c;
+    --accent: #6ee7a8;
+    --accent-dim: #2f6b4f;
+    --warn: #e3c160;
+    --danger: #e8776d;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+
+  body {
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+    font-size: 0.8rem;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 900px; margin: 0 auto; padding: 1.75rem 1.25rem 3rem; display: flex; flex-direction: column; gap: 1.4rem; }
+
+  .lead { margin: 0; font-size: 0.66rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); }
+  .lead::before { content: '// '; color: var(--accent-dim); }
+  h1 { margin: 0.2rem 0 0.3rem; font-size: 1.15rem; font-weight: 500; }
+  .sub { margin: 0; color: var(--muted); max-width: 70ch; }
+
+  .controls { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
+
+  select, button {
+    font: inherit;
+    font-size: 0.78rem;
+    color: var(--ink);
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    padding: 0.5rem 0.8rem;
+  }
+  button { cursor: pointer; transition: border-color 0.15s ease, color 0.15s ease; }
+  button:hover, select:hover { border-color: var(--accent-dim); }
+  button:focus-visible, select:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
+  button.go { background: #12211a; border-color: var(--accent-dim); color: var(--accent); }
+  button:disabled { opacity: 0.4; cursor: default; }
+
+  .drop {
+    border: 1px dashed var(--line);
+    padding: 0.9rem 1rem;
+    color: var(--muted);
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+  }
+  .drop.over { border-color: var(--accent); background: #0f1714; }
+  .drop b { color: var(--ink); font-weight: 500; }
+  .drop .link { background: none; border: 0; padding: 0; color: var(--accent); text-decoration: underline; text-underline-offset: 3px; font-size: inherit; }
+  .drop .using { color: var(--accent); }
+
+  .bar { height: 3px; background: var(--line); overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width 0.15s linear; }
+
+  .summary { display: flex; flex-wrap: wrap; gap: 0.5rem 1.4rem; color: var(--muted); }
+  .summary b { font-weight: 500; font-variant-numeric: tabular-nums; }
+  .summary .bad b { color: var(--danger); }
+  .summary .meh b { color: var(--warn); }
+  .summary .good b { color: var(--accent); }
+
+  h2 { margin: 0 0 0.5rem; font-size: 0.7rem; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+
+  .rows { border-top: 1px solid var(--line); }
+  .row {
+    display: grid;
+    grid-template-columns: 4.2rem minmax(0, 1fr);
+    gap: 0.2rem 0.9rem;
+    padding: 0.55rem 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .code { font-variant-numeric: tabular-nums; font-weight: 500; }
+  .row.bad .code { color: var(--danger); }
+  .row.meh .code { color: var(--warn); }
+  .row.good .code { color: var(--accent); }
+  .row.skip .code, .row.skip .path { color: var(--muted); }
+  .path { overflow-wrap: anywhere; }
+  .who { color: var(--muted); }
+  .hint { grid-column: 2; color: var(--warn); overflow-wrap: anywhere; }
+  .hint code { color: var(--ink); }
+
+  details summary { cursor: pointer; color: var(--muted); padding: 0.3rem 0; }
+  details summary:hover { color: var(--ink); }
+  .empty { color: var(--muted); }
+  .err { color: var(--danger); }
+
+  @media (max-width: 520px) {
+    .row { grid-template-columns: 1fr; }
+    .hint { grid-column: 1; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <p class="lead">Dev tools</p>
+    <h1>Link checker</h1>
+    <p class="sub">Finds every file a page points to (games, previews, ROMs, apps) and checks that each one actually loads on the live site. It only reads, never changes anything.</p>
+  </header>
+
+  <div class="controls">
+    <label for="page" class="sub">Page</label>
+    <select id="page">
+      <option value="study-hall.html">study-hall.html</option>
+      <option value="index.html">index.html</option>
+      <option value="resources.html">resources.html</option>
+    </select>
+    <button class="go" id="run" type="button">Check links</button>
+  </div>
+
+  <div class="drop" id="drop">
+    <span id="drop-text">About to upload a new version? <b>Drop the file from your computer here</b> (or <button class="link" id="pick" type="button">pick it</button>). It'll check what that file points to, so you see anything missing before you upload.</span>
+    <input type="file" id="file" accept=".html,text/html" hidden>
+  </div>
+
+  <div class="bar" aria-hidden="true"><i id="bar"></i></div>
+  <div class="summary" id="summary" aria-live="polite"></div>
+  <div id="results"></div>
+</div>
+
+<script>
+  const REPO = 'Guernica4u/Chalkbored-For-Students';
+  const $ = (id) => document.getElementById(id);
+  let localFile = null;   // { name, text } when a file was dropped in
+  let repoFiles = null;   // every file in the GitHub repo, for hints
+
+  // ---------- find the paths a page points to ----------
+  const FILE_EXT = /\.(html?|png|jpe?g|gif|webp|svg|ico|nes|unf|unif|sfc|smc|fig|swc|js|mjs|json|css|swf|mp3|mp4|webm|pdf|wasm|data)$/i;
+
+  function findPaths(text) {
+    const found = new Map();   // path -> label
+    const add = (raw, label) => {
+      const p = clean(raw);
+      if (!p) return;
+      if (!found.has(p) || (!found.get(p) && label)) found.set(p, label || '');
+    };
+
+    // entries like { name: 'Retro Bowl', path: '...', img: '...' }
+    for (const m of text.matchAll(/\{[^{}]*?\bname:\s*'([^']+)'[^{}]*?\}/g)) {
+      for (const k of m[0].matchAll(/\b(path|img|file|photo|src)\s*:\s*'([^']+)'/g)) add(k[2], m[1]);
+    }
+    // any other path-looking key, quoted file name, src= or href=
+    for (const m of text.matchAll(/\b(?:path|img|file|photo)\s*:\s*'([^']+)'/g)) add(m[1]);
+    for (const m of text.matchAll(/['"]([^'"\s<>{}]+\.[a-z0-9]{2,5})['"]/gi)) if (FILE_EXT.test(m[1])) add(m[1]);
+    for (const m of text.matchAll(/\b(?:src|href)\s*=\s*"([^"]+)"/gi)) add(m[1]);
+    return found;
+  }
+
+  function clean(p) {
+    p = p.trim();
+    if (!p || /^(https?:|data:|blob:|mailto:|tel:|javascript:|#|\/\/)/i.test(p)) return null;
+    if (p.includes('${') || p.includes(',')) return null;   // built in code, or a list like ".nes,.sfc"
+    try { p = decodeURIComponent(p); } catch (e) {}          // %20 in the source means a space
+    p = p.split('#')[0].split('?')[0].replace(/^\.\//, '').replace(/^\//, '');
+    if (!p || p.endsWith('/') && p.length < 2) return null;
+    if (!/[./]/.test(p)) return null;         // bare words aren't paths
+    if (/^[\d.]+$/.test(p)) return null;      // version numbers
+    return p;
+  }
+
+  // ---------- check them ----------
+  function urlFor(p) {
+    return '/' + p.split('/').map(encodeURIComponent).join('/');
+  }
+
+  async function check(p) {
+    try {
+      let r = await fetch(urlFor(p), { method: 'HEAD', cache: 'no-store' });
+      if (r.status === 405) r = await fetch(urlFor(p), { cache: 'no-store' });
+      const moved = r.redirected ? decodeURIComponent(new URL(r.url).pathname) : null;
+      return { status: r.status, ok: r.ok, moved };
+    } catch (e) {
+      return { status: 0, ok: false, moved: null };
+    }
+  }
+
+  async function loadRepo() {
+    if (repoFiles) return repoFiles;
+    try {
+      const r = await fetch('https://api.github.com/repos/' + REPO + '/git/trees/HEAD?recursive=1');
+      const d = await r.json();
+      repoFiles = (d.tree || []).filter((t) => t.type === 'blob').map((t) => t.path);
+    } catch (e) { repoFiles = []; }
+    return repoFiles;
+  }
+
+  // a broken path: say why, if the repo gives a clue
+  function hintFor(p) {
+    if (!repoFiles || !repoFiles.length) return '';
+    const lower = p.toLowerCase();
+    const bare = lower.replace(/\.html?$/, '');
+    const exact = repoFiles.find((f) => f === p);
+    if (exact) return 'It’s in the repo, so the site may still be deploying. Check again in a minute.';
+
+    const sameCase = repoFiles.find((f) => f.toLowerCase() === lower);
+    if (sameCase) return 'Capitals don’t match. The file is <code>' + esc(sameCase) + '</code>. Links are case-sensitive.';
+
+    const noExt = repoFiles.find((f) => f.toLowerCase() === bare);
+    if (noExt) return 'The file was uploaded without <code>.html</code>: it’s <code>' + esc(noExt) + '</code>. Rename it, or drop .html from the link.';
+
+    const withExt = repoFiles.find((f) => f.toLowerCase() === lower + '.html' || f.toLowerCase() === lower + '/index.html');
+    if (withExt) return 'Did you mean <code>' + esc(withExt) + '</code>?';
+
+    const name = lower.split('/').pop();
+    const elsewhere = repoFiles.filter((f) => f.toLowerCase().split('/').pop() === name);
+    if (elsewhere.length) return 'A file with that name is at <code>' + elsewhere.slice(0, 3).map(esc).join('</code>, <code>') + '</code>. It may have moved.';
+
+    return 'Not in the repo at all. Upload it, or fix the path.';
+  }
+
+  function esc(s) { return s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+  // ---------- run ----------
+  async function run() {
+    const btn = $('run');
+    btn.disabled = true;
+    $('results').innerHTML = '';
+    $('summary').textContent = 'Reading the page…';
+    $('bar').style.width = '0';
+
+    let text, source;
+    try {
+      if (localFile) {
+        text = localFile.text;
+        source = 'your copy of ' + localFile.name;
+      } else {
+        const page = $('page').value;
+        const r = await fetch(urlFor(page), { cache: 'no-store' });
+        if (!r.ok) throw new Error(page + ' itself returned ' + r.status + '.');
+        text = await r.text();
+        source = 'the live ' + page;
+      }
+    } catch (e) {
+      $('summary').innerHTML = '<span class="err"></span>';
+      $('summary').firstChild.textContent = 'Couldn’t read the page. ' + e.message;
+      btn.disabled = false;
+      return;
+    }
+
+    // the page can list paths to leave alone (apps that are paused for now)
+    const skipMeta = text.match(/<meta\s+name="linkcheck-skip"\s+content="([^"]*)"/i);
+    const skipList = skipMeta ? skipMeta[1].split(/\s+/).filter(Boolean) : [];
+    const skipped = [];
+    const paths = [...findPaths(text).entries()].filter(([p]) => {
+      const skip = skipList.some((s) => (s.endsWith('/') ? p.startsWith(s) : p === s));
+      if (skip) skipped.push(p);
+      return !skip;
+    });
+    const repo = loadRepo();
+    const results = [];
+    let done = 0;
+    const queue = paths.slice();
+
+    async function worker() {
+      while (queue.length) {
+        const [p, label] = queue.shift();
+        results.push({ p, label, ...(await check(p)) });
+        done++;
+        $('bar').style.width = (done / paths.length * 100) + '%';
+        $('summary').textContent = 'Checking ' + done + ' of ' + paths.length + '…';
+      }
+    }
+    await Promise.all(Array.from({ length: 6 }, worker));
+    await repo;
+
+    paint(results, source, skipped);
+    btn.disabled = false;
+  }
+
+  function paint(results, source, skipped = []) {
+    results.sort((a, b) => a.p.localeCompare(b.p));
+    const bad = results.filter((r) => !r.ok);
+    const moved = results.filter((r) => r.ok && r.moved);
+    const good = results.filter((r) => r.ok && !r.moved);
+
+    $('summary').innerHTML =
+      '<span>Checked ' + results.length + ' paths from ' + esc(source) + '</span>' +
+      '<span class="bad"><b>' + bad.length + '</b> broken</span>' +
+      '<span class="meh"><b>' + moved.length + '</b> redirected</span>' +
+      '<span class="good"><b>' + good.length + '</b> fine</span>';
+
+    const out = $('results');
+    out.innerHTML = '';
+
+    const section = (title, list, cls, open) => {
+      const wrap = document.createElement(open ? 'section' : 'details');
+      const head = document.createElement(open ? 'h2' : 'summary');
+      head.textContent = title + ' (' + list.length + ')';
+      wrap.appendChild(head);
+      const rows = document.createElement('div');
+      rows.className = 'rows';
+      list.forEach((r) => {
+        const row = document.createElement('div');
+        row.className = 'row ' + cls;
+        const code = document.createElement('span');
+        code.className = 'code';
+        code.textContent = r.status || 'fail';
+        const path = document.createElement('span');
+        path.className = 'path';
+        path.textContent = r.p;
+        if (r.label) {
+          const who = document.createElement('span');
+          who.className = 'who';
+          who.textContent = '  · ' + r.label;
+          path.appendChild(who);
+        }
+        row.append(code, path);
+        const hint = cls === 'bad' ? hintFor(r.p) : (r.moved ? 'Loads, but goes via <code>' + esc(r.moved) + '</code>. Usually fine.' : '');
+        if (hint) {
+          const h = document.createElement('span');
+          h.className = 'hint';
+          h.innerHTML = hint;
+          row.appendChild(h);
+        }
+        rows.appendChild(row);
+      });
+      wrap.appendChild(rows);
+      out.appendChild(wrap);
+    };
+
+    if (bad.length) section('Broken', bad, 'bad', true);
+    else {
+      const p = document.createElement('p');
+      p.className = 'empty';
+      p.textContent = 'Nothing broken. Every path loads.';
+      out.appendChild(p);
+    }
+    if (moved.length) section('Redirected', moved, 'meh', false);
+    if (good.length) section('Fine', good, 'good', false);
+    if (skipped.length) {
+      section('Skipped, app paused', skipped.map((p) => ({ p, status: '—', ok: true })), 'skip', false);
+    }
+  }
+
+  // ---------- dropping in a local file ----------
+  function useFile(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      localFile = { name: file.name, text: String(reader.result) };
+      $('drop-text').innerHTML = 'Using <span class="using"></span> from your computer. <button class="link" id="clear" type="button">Use the live page instead</button>';
+      $('drop-text').querySelector('.using').textContent = file.name;
+      $('page').disabled = true;
+      $('clear').onclick = () => location.reload();
+      run();
+    };
+    reader.readAsText(file);
+  }
+
+  $('pick').onclick = () => $('file').click();
+  $('file').onchange = () => useFile($('file').files[0]);
+  const drop = $('drop');
+  ['dragenter', 'dragover'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove('over'); }));
+  drop.addEventListener('drop', (e) => useFile(e.dataTransfer.files[0]));
+  $('run').onclick = run;
+</script>
+</body>
+</html>

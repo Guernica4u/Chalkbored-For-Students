@@ -209,6 +209,44 @@
 
   .row:hover .kill { opacity: 1; }
   .kill:hover { color: var(--danger); }
+  .kill:focus-visible { opacity: 1; outline: 1px solid var(--accent-dim); }
+
+  .compose-note {
+    margin: 0;
+    padding: 0 1.25rem 0.7rem;
+    font-size: 0.72rem;
+    color: var(--danger);
+  }
+  .compose-note:empty { display: none; }
+
+  /* ---------------- reports ---------------- */
+
+  .card.wide { width: min(600px, 100%); max-height: 82vh; display: flex; flex-direction: column; }
+  .rp-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.8rem; }
+  .rp-head h3 { margin: 0; }
+  #reports-list { overflow-y: auto; display: flex; flex-direction: column; gap: 0.7rem; }
+  .rp {
+    border: 1px solid var(--line);
+    background: var(--panel-2);
+    padding: 0.75rem 0.85rem;
+    font-size: 0.74rem;
+    line-height: 1.6;
+  }
+  .rp.auto { border-left: 2px solid var(--danger); }
+  .rp-top { display: flex; flex-wrap: wrap; gap: 0.3rem 0.8rem; color: var(--muted); font-size: 0.64rem; }
+  .rp-top b { color: var(--ink); font-weight: 500; }
+  .rp-body {
+    margin: 0.45rem 0;
+    padding: 0.4rem 0.6rem;
+    border-left: 2px solid var(--line);
+    color: var(--ink);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .rp-why { color: var(--muted); }
+  .rp-actions { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.55rem; }
+  .rp-actions .danger:hover { color: var(--danger); border-color: var(--danger); }
+  .count-badge { color: var(--danger); }
 
   .empty { margin: auto; font-size: 0.78rem; color: var(--muted); text-align: center; line-height: 1.8; }
 
@@ -350,7 +388,9 @@
     <div class="rail-foot">
       <span class="me">you: <b id="me-name">—</b><span class="tag" id="me-tag" hidden>mod</span></span>
       <button class="link" id="become-mod" type="button">Moderator login</button>
+      <button class="link" id="open-reports" type="button" hidden>Reports</button>
       <button class="link" id="mod-tools" type="button" hidden>Ban / unban someone</button>
+      <button class="link" id="word-list" type="button" hidden>Blocked words</button>
       <button class="link" id="room-mods" type="button" hidden>Add a room mod</button>
       <button class="link" id="sign-out" type="button">Sign out</button>
     </div>
@@ -370,6 +410,7 @@
       <input id="text" maxlength="500" placeholder="Say something…" disabled>
       <button class="primary" type="submit" disabled>Send</button>
     </form>
+    <p class="compose-note" id="compose-note" role="status"></p>
   </div>
 </div>
 
@@ -399,6 +440,13 @@
       <button class="ghost" id="ask-cancel" type="button">Cancel</button>
       <button class="primary" id="ask-ok" type="button">OK</button>
     </div>
+  </div>
+</div>
+
+<div class="veil hide" id="reports-veil">
+  <div class="card wide" role="dialog" aria-labelledby="reports-title">
+    <div class="rp-head"><h3 id="reports-title">Reports</h3><button class="mini" id="reports-close" type="button">close</button></div>
+    <div id="reports-list"></div>
   </div>
 </div>
 
@@ -502,6 +550,9 @@ async function loadRooms() {
   state.membership = {};
   (mine || []).forEach((m) => { state.membership[m.room_id] = m.role; });
   paintRooms();
+  paintMe();
+  refreshReportCount();
+  watchReports();
 
   if (!state.room && state.rooms.length) {
     const first = state.rooms.find((r) => r.is_global) || state.rooms[0];
@@ -703,6 +754,15 @@ function addMessage(m) {
   when.textContent = new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   meta.append(who, when);
 
+  if (!mine) {
+    const flag = document.createElement('button');
+    flag.className = 'kill';
+    flag.type = 'button';
+    flag.textContent = 'report';
+    flag.onclick = () => reportMessage(m.id);
+    meta.appendChild(flag);
+  }
+
   if (mine || canManage(state.room)) {
     const kill = document.createElement('button');
     kill.className = 'kill';
@@ -735,9 +795,22 @@ $('composer').addEventListener('submit', async (e) => {
   const body = $('text').value.trim();
   if (!body || !state.channel) return;
   $('text').value = '';
-  const { error } = await db.from('messages').insert({ channel_id: state.channel.id, user_id: state.me.id, body });
-  if (error) { alert(error.message); $('text').value = body; }
+  // the database checks it (auto mod) and answers with a reason if it said no
+  const { data: why, error } = await db.rpc('send_message', { p_channel: state.channel.id, p_body: body });
+  if (error || why) {
+    composeNote(error ? error.message : why);
+    $('text').value = body;
+  } else {
+    composeNote('');
+  }
 });
+
+let noteTimer = null;
+function composeNote(text) {
+  clearTimeout(noteTimer);
+  $('compose-note').textContent = text;
+  if (text) noteTimer = setTimeout(() => { $('compose-note').textContent = ''; }, 7000);
+}
 
 // live messages for the open channel
 function watchFeed() {
@@ -811,8 +884,173 @@ function paintMe() {
   $('me-name').textContent = state.me.username;
   $('me-tag').hidden = !state.me.is_mod;
   $('mod-tools').hidden = !state.me.is_mod;
+  $('word-list').hidden = !state.me.is_mod;
   $('become-mod').hidden = state.me.is_mod;
+  $('open-reports').hidden = !runsSomething();
 }
+
+// site mods, and anyone who owns or mods at least one room, get the report queue
+function runsSomething() {
+  return state.me.is_mod || Object.values(state.membership).some((r) => r === 'owner' || r === 'mod');
+}
+
+// ------------------------------------------------------------------ reports
+async function reportMessage(id) {
+  const answer = await ask({
+    title: 'Report message',
+    text: 'The mods will see the message and your reason. Three reports from different people remove it automatically.',
+    placeholder: 'What’s wrong? (optional)',
+  });
+  if (!answer) return;
+  const { data, error } = await db.rpc('report_message', { p_message: id, p_reason: answer.one || null });
+  alert(error ? error.message : data);
+}
+
+async function loadReports() {
+  const { data, error } = await db
+    .from('reports')
+    .select('id, kind, msg_ref, message_id, room_id, body, reason, auto_removed, created_at, ' +
+            'reported:profiles!reports_reported_user_fkey(username), reporter:profiles!reports_reporter_id_fkey(username)')
+    .eq('status', 'open')
+    .order('created_at', { ascending: false })
+    .limit(150);
+  if (error) return { error };
+
+  // several people reporting one message = one entry
+  const groups = new Map();
+  (data || []).forEach((r) => {
+    const key = r.msg_ref ? 'm' + r.msg_ref : 'r' + r.id;
+    if (!groups.has(key)) groups.set(key, { ...r, reporters: [], reasons: [] });
+    const g = groups.get(key);
+    if (r.reporter) g.reporters.push(r.reporter.username);
+    if (r.reason) g.reasons.push(r.reason);
+    if (r.auto_removed) g.auto_removed = true;
+  });
+  return { groups: [...groups.values()] };
+}
+
+async function refreshReportCount() {
+  if (!runsSomething()) return;
+  const { count } = await db.from('reports').select('id', { count: 'exact', head: true }).eq('status', 'open');
+  $('open-reports').innerHTML = count ? 'Reports <span class="count-badge">(' + count + ')</span>' : 'Reports';
+}
+
+async function paintReports() {
+  const list = $('reports-list');
+  list.innerHTML = '<p class="note">Loading…</p>';
+  const { groups, error } = await loadReports();
+  list.innerHTML = '';
+
+  if (error) {
+    const p = document.createElement('p');
+    p.className = 'err';
+    p.textContent = /reports|relationship|schema/.test(error.message)
+      ? 'The reports table is missing. Run SCRIPTS/chat-automod.sql in Supabase.'
+      : error.message;
+    list.appendChild(p);
+    return;
+  }
+  if (!groups.length) { list.innerHTML = '<p class="note">Nothing to review.</p>'; return; }
+
+  const roomName = (id) => (state.rooms.find((r) => r.id === id) || {}).name || 'a deleted room';
+
+  groups.forEach((g) => {
+    const box = document.createElement('div');
+    box.className = 'rp' + (g.kind === 'automod' ? ' auto' : '');
+
+    const top = document.createElement('div');
+    top.className = 'rp-top';
+    const add = (label, value) => {
+      const span = document.createElement('span');
+      span.append(label);
+      if (value) { const b = document.createElement('b'); b.textContent = value; span.append(b); }
+      top.appendChild(span);
+    };
+    add(g.kind === 'automod' ? 'auto mod · ' : 'about ', (g.reported && g.reported.username) || 'someone');
+    if (g.kind !== 'automod') add('reported by ', g.reporters.join(', ') || 'someone');
+    add('in ', roomName(g.room_id));
+    add(new Date(g.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }));
+    box.appendChild(top);
+
+    if (g.body) {
+      const body = document.createElement('div');
+      body.className = 'rp-body';
+      body.textContent = g.body;
+      box.appendChild(body);
+    }
+
+    const notes = g.reasons.slice();
+    if (g.auto_removed) notes.push('Removed automatically after 3 reports.');
+    else if (g.kind !== 'automod' && !g.message_id) notes.push('The message has since been deleted.');
+    if (notes.length) {
+      const why = document.createElement('div');
+      why.className = 'rp-why';
+      why.textContent = notes.join(' · ');
+      box.appendChild(why);
+    }
+
+    const actions = document.createElement('div');
+    actions.className = 'rp-actions';
+    const act = (label, action, cls, confirmText) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'mini' + (cls ? ' ' + cls : '');
+      b.textContent = label;
+      b.onclick = async () => {
+        if (confirmText && !confirm(confirmText)) return;
+        const { data, error } = await db.rpc('resolve_report', { p_report: g.id, p_action: action });
+        if (error || data) return alert(error ? error.message : data);
+        paintReports();
+        refreshReportCount();
+      };
+      actions.appendChild(b);
+    };
+    act(g.kind === 'automod' ? 'Seen it' : 'Dismiss', 'dismiss');
+    if (g.message_id) act('Delete message', 'remove', 'danger');
+    const who = (g.reported && g.reported.username) || 'this person';
+    if (state.me.is_mod) {
+      act('Time out 1 hour', 'timeout', 'danger');
+      act('Ban', 'ban', 'danger', 'Ban ' + who + '? They won’t be able to post anywhere.');
+    }
+    box.appendChild(actions);
+    list.appendChild(box);
+  });
+}
+
+$('open-reports').onclick = () => {
+  $('reports-veil').classList.remove('hide');
+  paintReports();
+};
+$('reports-close').onclick = () => $('reports-veil').classList.add('hide');
+$('reports-veil').addEventListener('click', (e) => { if (e.target.id === 'reports-veil') $('reports-close').click(); });
+
+let reportFeed = null;
+function watchReports() {
+  if (reportFeed || !runsSomething()) return;
+  reportFeed = db.channel('reports')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'reports' }, () => {
+      refreshReportCount();
+      if (!$('reports-veil').classList.contains('hide')) paintReports();
+    })
+    .subscribe();
+}
+
+// ------------------------------------------------------------------ blocked words
+$('word-list').onclick = async () => {
+  const { data } = await db.from('blocked_words').select('word').order('word');
+  const words = (data || []).map((w) => w.word);
+  const answer = await ask({
+    title: 'Blocked words',
+    text: (words.length ? 'On the list: ' + words.join(', ') + '.' : 'The list is empty.') +
+          ' Auto mod blocks messages with these as whole words, and catches swaps like 3 for e.',
+    placeholder: 'Word to add',
+    check: 'Remove it instead',
+  });
+  if (!answer || !answer.one) return;
+  const { data: msg, error } = await db.rpc('set_blocked_word', { p_word: answer.one, p_add: !answer.checked });
+  if (error || msg) alert(error ? error.message : msg);
+  else $('word-list').click();
+};
 
 // ------------------------------------------------------------------ go
 async function start() {
