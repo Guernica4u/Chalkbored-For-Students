@@ -150,6 +150,7 @@
   .nav-btn.active { color: var(--ink); background: var(--card); box-shadow: var(--shadow); font-weight: 700; }
   .nav-btn.active::before { opacity: 1; top: 5px; bottom: 5px; }
   .nav-btn svg { flex: none; width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+  .nav-btn .out { margin-left: auto; width: 13px; height: 13px; opacity: 0.6; }
   .tally { margin-left: auto; font-size: 0.75rem; color: var(--pencil); font-weight: 400; font-variant-numeric: tabular-nums; }
 
   .rail-foot { margin-top: auto; padding: 1rem 1.2rem; font-size: 0.8rem; }
@@ -547,7 +548,7 @@
   .modal-actions { display: flex; gap: 0.5rem; align-items: center; }
   .modal-actions .spacer { flex: 1; }
 
-  /* the dev tools frame */
+  /* the advanced tools frame */
   .frame { flex: 1; width: 100%; min-height: 70vh; border: 1px solid var(--edge); border-radius: 6px; background: #0c0d10; }
 
   /* ---------------- plain look (experimental) ---------------- */
@@ -634,13 +635,18 @@
           <svg viewBox="0 0 16 16"><path d="M10.5 1.8a3.6 3.6 0 0 0-4.3 4.6L1.8 10.8a1.5 1.5 0 0 0 2.1 2.1l4.4-4.4a3.6 3.6 0 0 0 4.6-4.3L11 5.9 9.4 5.6 9.1 4z"/></svg>
           <span>Tools</span><span class="tally" id="tally-tools"></span>
         </button>
+        <button class="nav-btn nav-out" type="button" id="open-chat" style="--tab:#5fb3a1" title="Opens in a new tab">
+          <svg viewBox="0 0 16 16"><path d="M2 3.5h12v8H6.5L3 14.2V11.5H2z"/></svg>
+          <span>Chat</span>
+          <svg class="out" viewBox="0 0 16 16" aria-hidden="true"><path d="M9 3h4v4M13 3 7.5 8.5M11.5 9.5V13h-8V4.5H7"/></svg>
+        </button>
         <button class="nav-btn" type="button" data-panel="junk" id="nav-junk" style="--tab:#c9a24a" hidden>
           <svg viewBox="0 0 16 16"><rect x="1.5" y="3" width="13" height="10" rx="1"/><path d="M1.5 8h13M6.5 5.5h3M6.5 10.5h3"/></svg>
           <span>Junk Drawer</span><span class="tally" id="tally-junk"></span>
         </button>
         <button class="nav-btn" type="button" data-panel="dev" id="nav-dev" style="--tab:#9a84d8" hidden>
           <svg viewBox="0 0 16 16"><path d="M5.5 4.5 2 8l3.5 3.5M10.5 4.5 14 8l-3.5 3.5M9 3 7 13"/></svg>
-          <span>Dev tools</span>
+          <span>Advanced tools</span>
         </button>
       </div>
 
@@ -766,11 +772,11 @@
             </div>
 
             <div class="group">
-              <h2>Developer</h2>
+              <h2>Advanced</h2>
               <p>Tools for whoever runs the site.</p>
               <div class="setting">
-                <div><h3>Dev tools</h3><p>Adds a Dev tools app with the link checker, which finds broken paths before anyone else does.</p></div>
-                <button class="switch" id="exp-dev" type="button" role="switch" aria-checked="false" aria-label="Dev tools"></button>
+                <div><h3>Advanced tools</h3><p>Adds an Advanced tools app with the link checker, which finds broken paths before anyone else does.</p></div>
+                <button class="switch" id="exp-dev" type="button" role="switch" aria-checked="false" aria-label="Advanced tools"></button>
               </div>
             </div>
 
@@ -817,10 +823,10 @@
       <ul>
         <li><b>New look.</b> It's a notebook now. The dark look lives on as the Chalkboard theme in Settings &rarr; Look.</li>
         <li><b>New address.</b> This page moved, so update your bookmark.</li>
-        <li><b>Subject</b> replaces Disguise in the tab cloak.</li>
+        <li><b>Subject</b>: pick what this tab looks like, in Settings &rarr; Tab cloak.</li>
         <li><b>Study tips</b> in the bottom corner.</li>
-        <li><b>Dev tools</b> with a link checker, under Settings &rarr; Developer.</li>
-        <li>Chat, Console and Chalk TV are taking a break for now.</li>
+        <li><b>Advanced tools</b> with a link checker, under Settings &rarr; Advanced.</li>
+        <li><b>Chat</b> now opens in its own tab. Console and Chalk TV are taking a break.</li>
       </ul>
       <div class="modal-actions"><span class="spacer"></span><button class="btn primary" id="notes-close" type="button">Got it</button></div>
     </div>
@@ -846,9 +852,8 @@
         { name: 'Learn to Fly 3',  path: 'GAMES/AeroDynamics-Loader.html' },
         { name: 'BTD4',            path: 'GAMES/Bloons Math Loader.html' },
         { name: 'Ragdoll Archers', path: 'GAMES/Learn-Archery.html' },
-        // taken off for now; remove the // to bring them back
-        // { name: 'Snow Rider 3D', path: 'GAMES/How-Sleds-Work/index.html', img: 'GAMES/How-Sleds-Work/TemplateData/snowrider3d-banner.webp' },
-        // { name: 'Retro Bowl',    path: 'GAMES/rb-main/index.html',        img: 'GAMES/rb-main/img/splash.png' },
+        { name: 'Snow Rider 3D',   path: 'GAMES/How-Sleds-Work/index.html', img: 'GAMES/How-Sleds-Work/TemplateData/snowrider3d-banner.webp' },
+        { name: 'Retro Bowl',      path: 'GAMES/rb-main/index.html',        img: 'GAMES/rb-main/img/splash.png' },
       ],
       tools: [
         { name: 'Chalk OS', path: 'TOOLS/CHALK-OS/Index.html',
@@ -914,7 +919,8 @@
       return key === want && !!c.ctrl === e.ctrlKey && !!c.alt === e.altKey && !!c.shift === e.shiftKey && !!c.meta === e.metaKey;
     }
 
-    const PAGE_URL = new URL('notebook.html', location.href).href;
+    // this page's own address, whatever it's called or wherever it's hosted
+    const PAGE_URL = location.href.split('?')[0].split('#')[0];
     const HOME_URL = new URL('index.html', location.href).href;
 
     // true when this page is running inside the about:blank cloak tab
@@ -1065,7 +1071,7 @@
       setTabLook(doc, d ? d.title : 'about:blank', d ? d.icon : null);
 
       const frame = doc.createElement('iframe');
-      frame.src = new URL('notebook.html?cloaked=1', location.href).href;
+      frame.src = PAGE_URL + '?cloaked=1';
       frame.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;border:none;';
       frame.setAttribute('allow', 'fullscreen; autoplay; gamepad; clipboard-read; clipboard-write');
       frame.setAttribute('allowfullscreen', '');
@@ -1273,6 +1279,7 @@
     // ---- home ----
     const APP_ICONS = {
       Games: '<svg viewBox="0 0 16 16"><rect x="1.5" y="4.5" width="13" height="8" rx="2.5"/><path d="M5 7v3M3.5 8.5h3M10.5 8.5h.01M12.5 7.5h.01"/></svg>',
+      Chat: '<svg viewBox="0 0 16 16"><path d="M2 3.5h12v8H6.5L3 14.2V11.5H2z"/></svg>',
       Tools: '<svg viewBox="0 0 16 16"><path d="M10.5 1.8a3.6 3.6 0 0 0-4.3 4.6L1.8 10.8a1.5 1.5 0 0 0 2.1 2.1l4.4-4.4a3.6 3.6 0 0 0 4.6-4.3L11 5.9 9.4 5.6 9.1 4z"/></svg>',
       'Junk Drawer': '<svg viewBox="0 0 16 16"><rect x="1.5" y="3" width="13" height="10" rx="1"/><path d="M1.5 8h13M6.5 5.5h3M6.5 10.5h3"/></svg>',
     };
@@ -1281,6 +1288,7 @@
       const apps = [
         { name: 'Games', panel: 'games', count: LIST.games.length },
         { name: 'Tools', panel: 'tools', count: LIST.tools.length },
+        { name: 'Chat', run: openChat, count: 'new tab' },
       ];
       if (settings.junk) apps.push({ name: 'Junk Drawer', panel: 'junk', count: LIST.junk.length });
 
@@ -1293,7 +1301,7 @@
         tile.innerHTML = APP_ICONS[app.name] + '<span></span><span class="tile-count"></span>';
         tile.querySelector('span').textContent = app.name;
         tile.querySelector('.tile-count').textContent = app.count;
-        tile.addEventListener('click', () => showPanel(app.panel));
+        tile.addEventListener('click', () => (app.run ? app.run() : showPanel(app.panel)));
         wrap.appendChild(tile);
       });
     }
@@ -1434,7 +1442,7 @@
       if (name === 'dev' && !devFrame) {
         devFrame = document.createElement('iframe');
         devFrame.className = 'frame';
-        devFrame.title = 'Dev tools';
+        devFrame.title = 'Advanced tools';
         devFrame.src = 'link-check.html';
         devFrame.addEventListener('load', () => {
           try { armPanic(devFrame.contentDocument, panicHere); } catch (e) {}
@@ -1443,7 +1451,12 @@
       }
     }
 
-    document.querySelectorAll('.nav-btn').forEach((b) => b.addEventListener('click', () => showPanel(b.dataset.panel)));
+    document.querySelectorAll('.nav-btn[data-panel]').forEach((b) => b.addEventListener('click', () => showPanel(b.dataset.panel)));
+
+    // chat lives in its own tab, cloaked like a game
+    const CHAT_PATH = 'chalk-chat.html';
+    function openChat() { openTab(CHAT_PATH, 'cloak'); }
+    $('open-chat').addEventListener('click', openChat);
     $('gear').addEventListener('click', () => showPanel('settings'));
 
     // ---- applying settings to the page ----
