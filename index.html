@@ -443,7 +443,7 @@
   </section>
 
   <footer>
-    ChalkBored <a class="secret-dot" id="secret-dot" href="study-hall.html" aria-label="Study hall">&middot;</a> built for students, kept free
+    ChalkBored <a class="secret-dot" id="secret-dot" href="notebook.html" aria-label="Notebook">&middot;</a> built for students, kept free
   </footer>
 
   <div class="secret-flash" id="secret-flash" aria-hidden="true"></div>
@@ -514,15 +514,27 @@
     // --- the secret ---
     const flash = document.getElementById('secret-flash');
 
-    function enterArcade() {
-      if (prefersReducedMotion) { window.location.href = 'study-hall.html'; return; }
+    function enterArcade(dest) {
+      dest = dest || 'notebook.html';
+      if (prefersReducedMotion) { window.location.href = dest; return; }
       flash.classList.add('on');
-      setTimeout(() => { window.location.href = 'study-hall.html'; }, 450);
+      setTimeout(() => { window.location.href = dest; }, 450);
     }
 
+    // the dot opens the notebook
     document.getElementById('secret-dot').addEventListener('click', (e) => {
       e.preventDefault();
-      enterArcade();
+      enterArcade('notebook.html');
+    });
+
+    // typing "bored" anywhere on the page opens study hall
+    const WORD = 'bored';
+    let typed = '';
+    document.addEventListener('keydown', (e) => {
+      if (e.target.closest && e.target.closest('input, textarea, [contenteditable="true"]')) return;
+      if (e.key.length !== 1) return;
+      typed = (typed + e.key.toLowerCase()).slice(-WORD.length);
+      if (typed === WORD) { typed = ''; enterArcade('study-hall.html'); }
     });
 
     // ...and for anyone who tries the old code
@@ -531,7 +543,7 @@
     document.addEventListener('keydown', (e) => {
       const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
       pos = (key === konami[pos]) ? pos + 1 : (key === konami[0] ? 1 : 0);
-      if (pos === konami.length) { pos = 0; enterArcade(); }
+      if (pos === konami.length) { pos = 0; enterArcade('notebook.html'); }
     });
   </script>
 

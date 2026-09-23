@@ -876,7 +876,7 @@
 
     const DEFAULT_SETTINGS = {
       home: false, plain: false, junk: false, dev: false, layout: 'default', rail: 'open',
-      disguise: 'off', alwaysBlank: false, setupDone: false, theme: 'notebook',
+      disguise: 'google', alwaysBlank: false, setupDone: false, theme: 'notebook',
     };
     let settings = Object.assign({}, DEFAULT_SETTINGS);
     let savedSettings = null;
@@ -888,6 +888,7 @@
       returningVisitor = !!(savedSettings || localStorage.getItem(PANIC_STORE) || localStorage.getItem(RECENTS_STORE));
     } catch (e) {}
     if (returningVisitor && !(savedSettings && 'setupDone' in savedSettings)) settings.setupDone = true;
+    if (!(settings.disguise in { off: 1, docs: 1, classroom: 1, google: 1 })) settings.disguise = 'google';
 
     function saveSettings() {
       try { localStorage.setItem(SETTINGS_STORE, JSON.stringify(settings)); } catch (e) {}
@@ -992,20 +993,6 @@
     }, true);
 
     // ---- tab looks ----
-    const CHROME_MONO_ICON = 'data:image/svg+xml,' + encodeURIComponent(
-      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">' +
-        '<defs><clipPath id="c"><circle cx="24" cy="24" r="22"/></clipPath></defs>' +
-        '<circle cx="24" cy="24" r="22" fill="#80868b"/>' +
-        '<g clip-path="url(#c)" stroke="#fff" stroke-width="2.6" stroke-linecap="round">' +
-          '<line x1="24" y1="14" x2="48" y2="14"/>' +
-          '<line x1="32.66" y1="29" x2="20.66" y2="49.8"/>' +
-          '<line x1="15.34" y1="29" x2="3.34" y2="8.2"/>' +
-        '</g>' +
-        '<circle cx="24" cy="24" r="10.5" fill="#fff"/>' +
-        '<circle cx="24" cy="24" r="8" fill="#80868b"/>' +
-      '</svg>'
-    );
-
     const DOCS_ICON = 'data:image/svg+xml,' + encodeURIComponent(
       '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">' +
         '<path d="M12 4h17l11 11v27a2 2 0 0 1-2 2H12a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" fill="#4285f4"/>' +
@@ -1025,9 +1012,10 @@
 
     // how game tabs look
     const CLOAKS = {
-      cloak:  { title: 'New Tab', icon: CHROME_MONO_ICON },
-      google: { title: 'Google',  icon: 'https://www.google.com/favicon.ico' },
+      google: { title: 'Google',                          icon: 'https://www.google.com/favicon.ico' },
+      docs:   { title: 'Untitled document - Google Docs', icon: DOCS_ICON },
     };
+    const DEFAULT_CLOAK = 'google';
 
     // the subject this tab pretends to be
     const DISGUISES = {
@@ -1035,7 +1023,6 @@
       docs:      { label: 'Google Docs', title: 'Untitled document - Google Docs', icon: DOCS_ICON },
       classroom: { label: 'Classroom',   title: 'Classes',                         icon: CLASSROOM_ICON },
       google:    { label: 'Google',      title: 'Google',                          icon: 'https://www.google.com/favicon.ico' },
-      newtab:    { label: 'New Tab',     title: 'New Tab',                         icon: CHROME_MONO_ICON },
     };
 
     const ORIGINAL_TITLE = document.title;
@@ -1082,8 +1069,8 @@
     }
 
     const OPEN_MODES = [
-      ['cloak',  'New Tab cloak'],
       ['google', 'Google cloak'],
+      ['docs',   'Google Docs cloak'],
       ['normal', 'Normal tab'],
     ];
 
@@ -1096,7 +1083,7 @@
         return;
       }
 
-      const look = CLOAKS[mode] || CLOAKS.cloak;
+      const look = CLOAKS[mode] || CLOAKS[DEFAULT_CLOAK];
       const win = window.open('about:blank', '_blank');
       if (!win) return;
 
@@ -1138,7 +1125,7 @@
 
     function launch(item, appName, mode) {
       recordRecent({ app: appName, name: item.name, path: item.path });
-      openTab(item.path, mode || 'cloak');
+      openTab(item.path, mode || DEFAULT_CLOAK);
     }
 
     // ---- building the lists ----
@@ -1455,7 +1442,7 @@
 
     // chat lives in its own tab, cloaked like a game
     const CHAT_PATH = 'chalk-chat.html';
-    function openChat() { openTab(CHAT_PATH, 'cloak'); }
+    function openChat() { openTab(CHAT_PATH, DEFAULT_CLOAK); }
     $('open-chat').addEventListener('click', openChat);
     $('gear').addEventListener('click', () => showPanel('settings'));
 
