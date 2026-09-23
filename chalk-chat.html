@@ -330,6 +330,10 @@
 
   .ghost:hover { color: var(--ink); border-color: var(--accent-dim); }
 
+  .gate p.safe { margin: -0.2rem 0 1rem; font-size: 0.7rem; letter-spacing: 0.08em; color: var(--accent); }
+  .safe-tag { font-size: 0.62rem; letter-spacing: 0.08em; color: var(--accent-dim); }
+  @media (max-width: 680px) { .safe-tag { display: none; } }
+
   .err { min-height: 1.2rem; margin-top: 0.7rem; font-size: 0.72rem; color: var(--danger); }
   .note { font-size: 0.72rem; color: var(--muted); }
 
@@ -399,6 +403,7 @@
   <div class="main">
     <header>
       <h1><span id="room-name">—</span><span class="dim" id="channel-name"></span></h1>
+      <span class="safe-tag">moderated and safe for students</span>
       <span class="spacer"></span>
       <span class="presence"><span class="dot"></span><span id="online">—</span></span>
       <button class="mini" id="delete-room" type="button" hidden>delete room</button>
@@ -417,6 +422,7 @@
 <div class="gate" id="gate">
   <div class="gate-box">
     <h2>Chalk Chat</h2>
+    <p class="safe">Moderated and safe for students</p>
     <p>Pick a name and a password. No email, no verification — the password is hashed on the server and never leaves your browser in the clear.</p>
     <input id="u" maxlength="20" placeholder="Username" autocomplete="username">
     <input id="p" type="password" placeholder="Password" autocomplete="current-password">
