@@ -4,88 +4,256 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Chalk TV</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --bg: #0c0d10;
-    --ink: #e8e8e6;
-    --muted: #6f7680;
-    --line: #23262c;
-    --accent: #6ee7a8;
-    --accent-dim: #2f6b4f;
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; background: #0c0d10; }
+  #player { width: 100%; height: 100%; border: none; background: #000; }
+  #overlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    display: flex; justify-content: center; align-items: center;
+    background: rgba(0,0,0,0.8); z-index: 1000;
   }
-
-  * { box-sizing: border-box; }
-  html, body { height: 100%; margin: 0; }
-
-  body {
-    display: grid;
-    place-items: center;
-    padding: 2rem;
-    background: var(--bg);
-    color: var(--ink);
-    font-family: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
-    -webkit-font-smoothing: antialiased;
-    text-align: center;
+  #prompt-box {
+    background: #1a1a1a; padding: 40px; border-radius: 8px;
+    text-align: center; color: #e8e8e6; font-family: system-ui, sans-serif;
   }
-
-  .set {
-    width: 132px;
-    margin: 0 auto 2rem;
-    color: var(--accent-dim);
+  #prompt-box h2 { margin: 0 0 20px; font-size: 18px; }
+  #prompt-box input {
+    display: block; width: 300px; padding: 12px; margin: 10px 0;
+    background: #2a2a2a; border: 1px solid #444; border-radius: 4px;
+    color: #e8e8e6; font-size: 14px;
   }
-
-  .set svg { width: 100%; height: auto; display: block; }
-
-  /* the screen gently flickers, like a set warming up */
-  .screen { animation: warm 3.2s ease-in-out infinite; }
-  @keyframes warm { 50% { opacity: 0.55; } }
-
-  h1 {
-    margin: 0 0 0.6rem;
-    font-size: clamp(1.4rem, 3vw, 1.9rem);
-    font-weight: 700;
-    letter-spacing: -0.01em;
+  #prompt-box input:focus { outline: none; border-color: #6ee7a8; }
+  #prompt-box button {
+    padding: 12px 30px; background: #6ee7a8; color: #000;
+    border: none; border-radius: 4px; font-size: 14px; cursor: pointer;
   }
-
-  .soon {
-    margin: 0 0 1rem;
-    font-size: 0.72rem;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    color: var(--accent);
-  }
-
-  p.line {
-    margin: 0 auto;
-    max-width: 38ch;
-    font-size: 0.82rem;
-    line-height: 1.7;
-    color: var(--muted);
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .screen { animation: none; }
-  }
+  #prompt-box button:hover { background: #5cd698; }
+  #status { margin-top: 15px; font-size: 13px; color: #c9534b; min-height: 18px; }
 </style>
 </head>
 <body>
-  <main>
-    <div class="set" aria-hidden="true">
-      <svg viewBox="0 0 120 96" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M44 6 60 20 76 6"/>
-        <rect x="6" y="20" width="108" height="64" rx="8"/>
-        <rect class="screen" x="16" y="30" width="72" height="44" rx="4" fill="currentColor" fill-opacity="0.15"/>
-        <circle cx="101" cy="40" r="4"/>
-        <circle cx="101" cy="56" r="4"/>
-        <path d="M30 84v6M90 84v6"/>
-      </svg>
-    </div>
-    <p class="soon">Coming soon</p>
-    <h1>Chalk TV</h1>
-    <p class="line">Something to watch, right here in the vault. It's being built.</p>
-  </main>
+<iframe id="player" allowfullscreen></iframe>
+<div id="overlay">
+  <div id="prompt-box">
+    <h2>Enter tide key</h2>
+    <input type="password" id="key-input" placeholder="tide key" autocomplete="off">
+    <button id="submit-btn">Go</button>
+    <div id="status"></div>
+  </div>
+</div>
+<script>
+// ============================================================
+// CONFIGURATION: Set your target URL here
+// ============================================================
+const TARGET_URL = "PUT_YOUR_URL_HERE";
+
+// ============================================================
+// Do not edit below this line
+// ============================================================
+
+const WISP_HOST = "tide.chalkbored.win";
+const TIDE_ENC_KEY = "chalk-tv.tide.enc";
+
+const overlay = document.getElementById("overlay");
+const promptBox = document.getElementById("prompt-box");
+const keyInput = document.getElementById("key-input");
+const submitBtn = document.getElementById("submit-btn");
+const statusEl = document.getElementById("status");
+const player = document.getElementById("player");
+
+// Base64 <-> ArrayBuffer conversion
+function arrayBufferToBase64(buffer) {
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
+function base64ToArrayBuffer(base64) {
+  const binaryString = atob(base64);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes.buffer;
+}
+
+// Derive key from password using PBKDF2
+async function deriveKey(password, salt) {
+  const encoder = new TextEncoder();
+  const passwordBuffer = encoder.encode(password);
+  const importedKey = await crypto.subtle.importKey(
+    "raw", passwordBuffer, { name: "PBKDF2" }, false, ["deriveKey"]
+  );
+  return await crypto.subtle.deriveKey(
+    { name: "PBKDF2", salt: salt, iterations: 100000, hash: "SHA-256" },
+    importedKey,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt", "decrypt"]
+  );
+}
+
+// Encrypt token
+async function encryptToken(token, key) {
+  const encoder = new TextEncoder();
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const tokenBuffer = encoder.encode(token);
+  const encrypted = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv: iv },
+    key,
+    tokenBuffer
+  );
+  return { ciphertext: encrypted, iv: iv };
+}
+
+// Decrypt token
+async function decryptToken(ciphertext, iv, key) {
+  try {
+    const decrypted = await crypto.subtle.decrypt(
+      { name: "AES-GCM", iv: iv },
+      key,
+      ciphertext
+    );
+    return new TextDecoder().decode(decrypted);
+  } catch (e) {
+    return null;
+  }
+}
+
+// Store encrypted token
+async function storeEncryptedToken(token, password) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const key = await deriveKey(password, salt);
+  const { ciphertext, iv } = await encryptToken(token, key);
+  const encoded = {
+    ciphertext: arrayBufferToBase64(ciphertext),
+    iv: arrayBufferToBase64(iv),
+    salt: arrayBufferToBase64(salt)
+  };
+  try {
+    localStorage.setItem(TIDE_ENC_KEY, JSON.stringify(encoded));
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+// Load and decrypt token
+async function loadDecryptedToken(password) {
+  try {
+    const stored = localStorage.getItem(TIDE_ENC_KEY);
+    if (!stored) return null;
+    const encoded = JSON.parse(stored);
+    const salt = base64ToArrayBuffer(encoded.salt);
+    const key = await deriveKey(password, salt);
+    const iv = base64ToArrayBuffer(encoded.iv);
+    const ciphertext = base64ToArrayBuffer(encoded.ciphertext);
+    return await decryptToken(ciphertext, iv, key);
+  } catch (e) {
+    return null;
+  }
+}
+
+// Check if encrypted token exists
+function hasEncryptedToken() {
+  try {
+    return !!localStorage.getItem(TIDE_ENC_KEY);
+  } catch (e) {
+    return false;
+  }
+}
+
+// Build tide WebSocket URL
+function buildTideUrl(token) {
+  const secure = location.protocol === "https:";
+  return (secure ? "wss://" : "ws://") + WISP_HOST + "/wisp/" + encodeURIComponent(token) + "/";
+}
+
+// Test tide connection
+async function testTideConnection(token) {
+  return new Promise(resolve => {
+    let done = false;
+    const finish = r => { if (!done) { done = true; resolve(r); } };
+    let ws;
+    try { ws = new WebSocket(buildTideUrl(token)); }
+    catch (e) { return finish(false); }
+    const timer = setTimeout(() => { try { ws.close(); } catch(e){} finish(false); }, 5000);
+    ws.onopen = () => { clearTimeout(timer); try { ws.close(); } catch(e){} finish(true); };
+    ws.onerror = ws.onclose = () => { clearTimeout(timer); finish(false); };
+  });
+}
+
+// Navigate to target URL via tide
+function navigateToTarget(token) {
+  // For now, just redirect to the target URL
+  // The tide integration would normally route through the proxy
+  // but for simplicity we're just redirecting directly
+  
+  // If TARGET_URL is empty, show error
+  if (!TARGET_URL || TARGET_URL === "PUT_YOUR_URL_HERE") {
+    statusEl.textContent = "No target URL configured. Edit this file and set TARGET_URL.";
+    return;
+  }
+  
+  // Store token for future use
+  storeEncryptedToken(token, token).then(() => {
+    // Redirect to target
+    player.src = TARGET_URL;
+    overlay.style.display = "none";
+  });
+}
+
+// Main prompt
+async function showPrompt() {
+  overlay.style.display = "flex";
+  keyInput.value = "";
+  keyInput.focus();
+  statusEl.textContent = "";
+  
+  submitBtn.onclick = async () => {
+    const key = keyInput.value.trim();
+    if (!key) {
+      statusEl.textContent = "Please enter a tide key";
+      return;
+    }
+    
+    submitBtn.disabled = true;
+    statusEl.textContent = "Connecting...";
+    
+    // Test the connection
+    const connected = await testTideConnection(key);
+    
+    if (connected) {
+      navigateToTarget(key);
+    } else {
+      submitBtn.disabled = false;
+      statusEl.textContent = "Connection failed. Check the tide key and try again.";
+    }
+  };
+  
+  // Also allow Enter key
+  keyInput.onkeypress = (e) => {
+    if (e.key === "Enter") submitBtn.click();
+  };
+}
+
+// Check if we have a stored token and auto-connect
+async function checkStoredToken() {
+  if (hasEncryptedToken()) {
+    // For auto-connect, we'd need the password
+    // For now, just show prompt
+    showPrompt();
+  } else {
+    showPrompt();
+  }
+}
+
+// Start
+checkStoredToken();
+</script>
 </body>
 </html>
