@@ -3,23 +3,25 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="referrer" content="no-referrer">
 <title>Chalk TV</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; overflow: hidden; background: #0c0d10; }
-  #player { width: 100%; height: 100%; border: none; background: #000; }
+  #stage { position: fixed; inset: 0; background: #000; }
+  #stage iframe { width: 100%; height: 100%; border: none; background: #000; display: block; }
   #overlay {
     position: fixed; top: 0; left: 0; right: 0; bottom: 0;
     display: flex; justify-content: center; align-items: center;
     background: rgba(0,0,0,0.8); z-index: 1000;
   }
   #prompt-box {
-    background: #1a1a1a; padding: 40px; border-radius: 8px;
+    background: #1a1a1a; padding: 40px; border-radius: 8px; max-width: calc(100% - 32px);
     text-align: center; color: #e8e8e6; font-family: system-ui, sans-serif;
   }
   #prompt-box h2 { margin: 0 0 20px; font-size: 18px; }
   #prompt-box input {
-    display: block; width: 300px; padding: 12px; margin: 10px 0;
+    display: block; width: 300px; max-width: 100%; padding: 12px; margin: 10px 0;
     background: #2a2a2a; border: 1px solid #444; border-radius: 4px;
     color: #e8e8e6; font-size: 14px;
   }
@@ -29,19 +31,30 @@
     border: none; border-radius: 4px; font-size: 14px; cursor: pointer;
   }
   #prompt-box button:hover { background: #5cd698; }
-  #status { margin-top: 15px; font-size: 13px; color: #c9534b; min-height: 18px; }
+  #prompt-box button:disabled { opacity: 0.6; cursor: default; }
+  #status { margin-top: 15px; font-size: 13px; color: #c9534b; min-height: 18px; max-width: 300px; }
+  #hint { margin-top: 10px; font-size: 12px; color: #8a8a88; max-width: 300px; }
+  #toast {
+    position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%);
+    max-width: calc(100% - 32px); padding: 10px 14px; border-radius: 6px;
+    background: #1a1a1a; color: #e8e8e6; font: 13px system-ui, sans-serif;
+    z-index: 1001; opacity: 0; transition: opacity 0.4s; pointer-events: none;
+  }
+  #toast.show { opacity: 1; }
 </style>
 </head>
 <body>
-<iframe id="player" allowfullscreen></iframe>
+<div id="stage"></div>
 <div id="overlay">
   <div id="prompt-box">
     <h2>Enter tide key</h2>
-    <input type="password" id="key-input" placeholder="tide key" autocomplete="off">
-    <button id="submit-btn">Go</button>
+    <input type="password" id="key-input" placeholder="tide key" autocomplete="off" spellcheck="false">
+    <button id="submit-btn" type="button">Go</button>
     <div id="status"></div>
+    <div id="hint"></div>
   </div>
 </div>
+<div id="toast"></div>
 <script>
 // ============================================================
 // CONFIGURATION: Set your target URL here
@@ -52,208 +65,236 @@ const TARGET_URL = "youtube.com";
 // Do not edit below this line
 // ============================================================
 
+/* Chalk TV opens TARGET_URL through the tide, the same way Seahorse does in
+   CHALK OS: the tide server on your own machine opens the connections, and
+   Scramjet - a service worker - rewrites what comes back so the site works.
+
+   It borrows CHALK OS's tide files and its service worker instead of keeping
+   copies. Scramjet keeps one set of settings per website, so both pages have
+   to set it up exactly the same way or they would undo each other.
+
+   The key is never written in this file. It is only kept in this browser if
+   "Remember tide key" is turned on in Notebook's settings. */
 const WISP_HOST = "tide.chalkbored.win";
-const TIDE_ENC_KEY = "chalk-tv.tide.enc";
+const TIDE_KEY_STORE = "chalk-tv.tide";
+const SETTINGS_STORE = "vault-settings";          /* Notebook's settings */
+const TIDE_BASE = location.pathname.replace(/[^/]*$/, "") + "TOOLS/CHALK-OS/";
 
 const overlay = document.getElementById("overlay");
-const promptBox = document.getElementById("prompt-box");
 const keyInput = document.getElementById("key-input");
 const submitBtn = document.getElementById("submit-btn");
 const statusEl = document.getElementById("status");
-const player = document.getElementById("player");
+const hintEl = document.getElementById("hint");
+const stage = document.getElementById("stage");
+const toastEl = document.getElementById("toast");
 
-// Base64 <-> ArrayBuffer conversion
-function arrayBufferToBase64(buffer) {
-  let binary = '';
-  const bytes = new Uint8Array(buffer);
-  for (let i = 0; i < bytes.byteLength; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return btoa(binary);
+/* ---- the key ---- */
+function rememberOn() {
+  try { return !!(JSON.parse(localStorage.getItem(SETTINGS_STORE) || "null") || {}).rememberTide; }
+  catch (e) { return false; }
 }
-
-function base64ToArrayBuffer(base64) {
-  const binaryString = atob(base64);
-  const bytes = new Uint8Array(binaryString.length);
-  for (let i = 0; i < binaryString.length; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
-  }
-  return bytes.buffer;
+function savedKey() {
+  try { return localStorage.getItem(TIDE_KEY_STORE) || ""; } catch (e) { return ""; }
 }
-
-// Derive key from password using PBKDF2
-async function deriveKey(password, salt) {
-  const encoder = new TextEncoder();
-  const passwordBuffer = encoder.encode(password);
-  const importedKey = await crypto.subtle.importKey(
-    "raw", passwordBuffer, { name: "PBKDF2" }, false, ["deriveKey"]
-  );
-  return await crypto.subtle.deriveKey(
-    { name: "PBKDF2", salt: salt, iterations: 100000, hash: "SHA-256" },
-    importedKey,
-    { name: "AES-GCM", length: 256 },
-    false,
-    ["encrypt", "decrypt"]
-  );
+function saveKey(key) {
+  try { if (rememberOn()) localStorage.setItem(TIDE_KEY_STORE, key); } catch (e) {}
 }
-
-// Encrypt token
-async function encryptToken(token, key) {
-  const encoder = new TextEncoder();
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const tokenBuffer = encoder.encode(token);
-  const encrypted = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv: iv },
-    key,
-    tokenBuffer
-  );
-  return { ciphertext: encrypted, iv: iv };
+function forgetKey() {
+  try { localStorage.removeItem(TIDE_KEY_STORE); } catch (e) {}
 }
+/* the old version kept a key under this name that nothing could use */
+try { localStorage.removeItem("chalk-tv.tide.enc"); } catch (e) {}
+if (!rememberOn()) forgetKey();
 
-// Decrypt token
-async function decryptToken(ciphertext, iv, key) {
+/* ---- where to go ---- */
+function targetUrl() {
+  let raw = String(TARGET_URL || "").trim();
+  if (!raw || raw === "PUT_YOUR_URL_HERE") return null;
+  if (!/^[a-z][a-z0-9+.-]*:/i.test(raw)) raw = "https://" + raw;
   try {
-    const decrypted = await crypto.subtle.decrypt(
-      { name: "AES-GCM", iv: iv },
-      key,
-      ciphertext
-    );
-    return new TextDecoder().decode(decrypted);
-  } catch (e) {
-    return null;
-  }
+    const u = new URL(raw);
+    return /^https?:$/.test(u.protocol) ? u.href : null;
+  } catch (e) { return null; }
 }
 
-// Store encrypted token
-async function storeEncryptedToken(token, password) {
-  const salt = crypto.getRandomValues(new Uint8Array(16));
-  const key = await deriveKey(password, salt);
-  const { ciphertext, iv } = await encryptToken(token, key);
-  const encoded = {
-    ciphertext: arrayBufferToBase64(ciphertext),
-    iv: arrayBufferToBase64(iv),
-    salt: arrayBufferToBase64(salt)
-  };
-  try {
-    localStorage.setItem(TIDE_ENC_KEY, JSON.stringify(encoded));
-    return true;
-  } catch (e) {
-    return false;
-  }
+/* ---- the connection: always encrypted, never plain ws:// ---- */
+function wispHostOk() {
+  return /^[a-z0-9.-]+(:\d+)?$/i.test(WISP_HOST);
 }
-
-// Load and decrypt token
-async function loadDecryptedToken(password) {
-  try {
-    const stored = localStorage.getItem(TIDE_ENC_KEY);
-    if (!stored) return null;
-    const encoded = JSON.parse(stored);
-    const salt = base64ToArrayBuffer(encoded.salt);
-    const key = await deriveKey(password, salt);
-    const iv = base64ToArrayBuffer(encoded.iv);
-    const ciphertext = base64ToArrayBuffer(encoded.ciphertext);
-    return await decryptToken(ciphertext, iv, key);
-  } catch (e) {
-    return null;
-  }
+function tideWisp(key) {
+  return "wss://" + WISP_HOST + "/wisp/" + encodeURIComponent(key) + "/";
 }
-
-// Check if encrypted token exists
-function hasEncryptedToken() {
-  try {
-    return !!localStorage.getItem(TIDE_ENC_KEY);
-  } catch (e) {
-    return false;
-  }
+function secureReason() {
+  if (location.protocol !== "https:" && !window.isSecureContext)
+    return "Chalk TV only runs on an https:// address, so nothing goes out unencrypted.";
+  if (!("serviceWorker" in navigator))
+    return "This browser cannot run the tide here. Private windows in Firefox block it.";
+  if (!wispHostOk())
+    return "The tide address in this file is not valid.";
+  return "";
 }
-
-// Build tide WebSocket URL
-function buildTideUrl(token) {
-  const secure = location.protocol === "https:";
-  return (secure ? "wss://" : "ws://") + WISP_HOST + "/wisp/" + encodeURIComponent(token) + "/";
-}
-
-// Test tide connection
-async function testTideConnection(token) {
+/* a plain connection to the server, which is exactly what it checks the key on */
+function testKey(key) {
   return new Promise(resolve => {
     let done = false;
     const finish = r => { if (!done) { done = true; resolve(r); } };
     let ws;
-    try { ws = new WebSocket(buildTideUrl(token)); }
-    catch (e) { return finish(false); }
-    const timer = setTimeout(() => { try { ws.close(); } catch(e){} finish(false); }, 5000);
-    ws.onopen = () => { clearTimeout(timer); try { ws.close(); } catch(e){} finish(true); };
-    ws.onerror = ws.onclose = () => { clearTimeout(timer); finish(false); };
+    try { ws = new WebSocket(tideWisp(key)); }
+    catch (e) { return finish({ ok: false, why: "The tide address will not do." }); }
+    const timer = setTimeout(() => {
+      try { ws.close(); } catch (e) {}
+      finish({ ok: false, why: "No answer from the tide. Is the machine on?" });
+    }, 9000);
+    ws.onopen = () => { clearTimeout(timer); try { ws.close(); } catch (e) {} finish({ ok: true }); };
+    ws.onerror = ws.onclose = () => {
+      clearTimeout(timer);
+      finish({ ok: false, why: "Turned away. Check the tide key and try again." });
+    };
   });
 }
 
-// Navigate to target URL via tide
-function navigateToTarget(token) {
-  // For now, just redirect to the target URL
-  // The tide integration would normally route through the proxy
-  // but for simplicity we're just redirecting directly
-  
-  // If TARGET_URL is empty, show error
-  if (!TARGET_URL || TARGET_URL === "PUT_YOUR_URL_HERE") {
-    statusEl.textContent = "No target URL configured. Edit this file and set TARGET_URL.";
-    return;
+/* ---- starting the tide (kept in step with tideStart() in CHALK OS) ---- */
+function loadScript(src) {
+  return new Promise((ok, fail) => {
+    const s = document.createElement("script");
+    s.src = src;
+    s.onload = () => ok();
+    s.onerror = () => fail(new Error("The tide files did not load. Is TOOLS/CHALK-OS/tide/ uploaded?"));
+    document.head.appendChild(s);
+  });
+}
+/* A half-made Scramjet database never repairs itself. Throw it away and try once more. */
+async function initController(ctl) {
+  try { await ctl.init(); }
+  catch (err) {
+    const msg = String((err && err.message) || err);
+    if (!/object stores? was not found|NotFoundError/i.test(msg)) throw err;
+    for (const reg of await navigator.serviceWorker.getRegistrations()) await reg.unregister();
+    await new Promise(done => {
+      const req = indexedDB.deleteDatabase("$scramjet");
+      req.onsuccess = req.onerror = req.onblocked = done;
+    });
+    await ctl.init();
   }
-  
-  // Store token for future use
-  storeEncryptedToken(token, token).then(() => {
-    // Redirect to target
-    player.src = TARGET_URL;
-    overlay.style.display = "none";
+}
+/* navigator.serviceWorker.ready only settles for a worker that covers this
+   page, and this page sits outside TOOLS/CHALK-OS/ - so wait on the
+   registration itself */
+function workerActive(reg) {
+  if (reg.active) return Promise.resolve();
+  const w = reg.installing || reg.waiting;
+  return new Promise((ok, fail) => {
+    const timer = setTimeout(() => fail(new Error("The tide's service worker did not start.")), 15000);
+    w.addEventListener("statechange", () => {
+      if (w.state === "activated") { clearTimeout(timer); ok(); }
+      else if (w.state === "redundant") { clearTimeout(timer); fail(new Error("The tide's service worker did not start.")); }
+    });
   });
 }
+async function startTide(key) {
+  await loadScript(TIDE_BASE + "tide/scram/scramjet.all.js");
+  await loadScript(TIDE_BASE + "tide/baremux/index.js");
+  if (!window.$scramjetLoadController || !window.BareMux)
+    throw new Error("The tide files did not load properly.");
+  const { ScramjetController } = $scramjetLoadController();
+  const ctl = new ScramjetController({
+    prefix: TIDE_BASE + "tide/go/",
+    files: {
+      wasm: TIDE_BASE + "tide/scram/scramjet.wasm.wasm",
+      all:  TIDE_BASE + "tide/scram/scramjet.all.js",
+      sync: TIDE_BASE + "tide/scram/scramjet.sync.js"
+    },
+    /* the same flags as CHALK OS, so the two never fight over the settings */
+    flags: {
+      serviceworkers: false, syncxhr: false, strictRewrites: true, rewriterLogs: false,
+      captureErrors: true, cleanErrors: false, scramitize: false, sourcemaps: true,
+      destructureRewrites: false, allowInvalidJs: true, allowFailedIntercepts: true,
+      interceptDownloads: true
+    }
+  });
+  await initController(ctl);
+  /* Chalk TV has nowhere to put downloads, so they are dropped rather than saved */
+  ctl.addEventListener("download", e => { try { e.download.body.cancel(); } catch (x) {} });
+  const reg = await navigator.serviceWorker.register(TIDE_BASE + "sw.js", { scope: TIDE_BASE });
+  await workerActive(reg);
+  const conn = new BareMux.BareMuxConnection(TIDE_BASE + "tide/baremux/worker.js");
+  await conn.setTransport(TIDE_BASE + "tide/libcurl/index.mjs", [{ websocket: tideWisp(key) }]);
+  return ctl;
+}
 
-// Main prompt
-async function showPrompt() {
-  overlay.style.display = "flex";
+/* Firefox cannot pass a stream between pages, so video mostly will not play */
+function canStream() {
+  try {
+    const ch = new MessageChannel();
+    const rs = new ReadableStream();
+    ch.port1.postMessage(rs, [rs]);
+    return true;
+  } catch (e) { return false; }
+}
+function toast(text) {
+  toastEl.textContent = text;
+  toastEl.classList.add("show");
+  setTimeout(() => toastEl.classList.remove("show"), 8000);
+}
+
+/* ---- going ---- */
+let busy = false;
+async function connect(key, fromSaved) {
+  if (busy) return;
+  const why = secureReason();
+  if (why) return showPrompt(why);
+  const url = targetUrl();
+  if (!url) return showPrompt("No target URL configured. Edit this file and set TARGET_URL.");
+
+  busy = true;
+  submitBtn.disabled = true;
+  statusEl.textContent = "Connecting...";
+  const test = await testKey(key);
+  if (!test.ok) {
+    busy = false;
+    /* a saved key the tide turns away is no good any more */
+    if (fromSaved && /Turned away/.test(test.why)) forgetKey();
+    return showPrompt(test.why);
+  }
+  let ctl;
+  try { ctl = await startTide(key); }
+  catch (err) {
+    busy = false;
+    return showPrompt(err.message || "The tide would not start.");
+  }
+  saveKey(key);
   keyInput.value = "";
+  const sf = ctl.createFrame();
+  sf.frame.title = "Chalk TV";
+  sf.frame.allow = "fullscreen; autoplay; encrypted-media; picture-in-picture";
+  sf.frame.allowFullscreen = true;
+  stage.appendChild(sf.frame);
+  sf.go(url);
+  overlay.style.display = "none";
+  if (!canStream()) toast("Video mostly won't play through the tide in Firefox. Chrome or Edge can do it.");
+}
+
+function showPrompt(message) {
+  overlay.style.display = "flex";
+  submitBtn.disabled = false;
+  statusEl.textContent = message || "";
+  hintEl.textContent = rememberOn()
+    ? "This browser will remember the key."
+    : "To stay signed in, turn on Remember tide key in Notebook's settings.";
   keyInput.focus();
-  statusEl.textContent = "";
-  
-  submitBtn.onclick = async () => {
-    const key = keyInput.value.trim();
-    if (!key) {
-      statusEl.textContent = "Please enter a tide key";
-      return;
-    }
-    
-    submitBtn.disabled = true;
-    statusEl.textContent = "Connecting...";
-    
-    // Test the connection
-    const connected = await testTideConnection(key);
-    
-    if (connected) {
-      navigateToTarget(key);
-    } else {
-      submitBtn.disabled = false;
-      statusEl.textContent = "Connection failed. Check the tide key and try again.";
-    }
-  };
-  
-  // Also allow Enter key
-  keyInput.onkeypress = (e) => {
-    if (e.key === "Enter") submitBtn.click();
-  };
 }
 
-// Check if we have a stored token and auto-connect
-async function checkStoredToken() {
-  if (hasEncryptedToken()) {
-    // For auto-connect, we'd need the password
-    // For now, just show prompt
-    showPrompt();
-  } else {
-    showPrompt();
-  }
-}
+submitBtn.onclick = () => {
+  const key = keyInput.value.trim();
+  if (!key) { statusEl.textContent = "Please enter a tide key"; return; }
+  connect(key, false);
+};
+keyInput.onkeydown = e => { if (e.key === "Enter") submitBtn.click(); };
 
-// Start
-checkStoredToken();
+/* Start: go straight in with a remembered key, otherwise ask */
+const remembered = rememberOn() ? savedKey() : "";
+if (remembered) { showPrompt(""); connect(remembered, true); }
+else showPrompt("");
 </script>
 </body>
 </html>
