@@ -67,6 +67,26 @@
     color-scheme: dark;
   }
 
+  /* Night: soft dark blue-grey, warm text, gentle accent */
+  body[data-theme="night"] {
+    --paper: #16181d;
+    --paper-2: #1f232a;
+    --card: #1c1f26;
+    --ink: #d9d5cc;
+    --pencil: #8b909a;
+    --rule-line: transparent;
+    --margin-line: transparent;
+    --edge: #2b3039;
+    --accent: #8fb3d9;
+    --accent-ink: #16181d;
+    --highlight: #2f4157;
+    --danger: #d98b7f;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 6px 18px rgba(0, 0, 0, 0.18);
+    --hand: var(--body);
+    color-scheme: dark;
+  }
+  body[data-theme="night"] .mono { background: transparent !important; color: var(--accent); border: 1px solid var(--edge); }
+
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; overflow: hidden; }
   body {
@@ -201,12 +221,6 @@
     opacity: 0; transition: opacity 0.4s; pointer-events: none;
   }
   #toast.show { opacity: 1; }
-
-  /* Notebook's "Plain look": no handwriting, no ruled paper, no animations */
-  body.plain { --hand: var(--body); }
-  body.plain #homepage, body.plain #settings { background: var(--paper); }
-  body.plain * { transition: none !important; }
-  body.plain .card:hover { transform: none; }
 
   /* ---- settings ---- */
   #settings { position: absolute; inset: 0; z-index: 5; overflow-y: auto; padding: 32px 16px 40px; background: var(--paper); }
@@ -428,14 +442,14 @@ function notebookSettings() {
   try { return JSON.parse(localStorage.getItem(SETTINGS_STORE) || "null") || {}; }
   catch (e) { return {}; }
 }
-const THEME_NAMES = { notebook: "Notebook", chalkboard: "Chalkboard", terminal: "Terminal" };
+const THEME_NAMES = { notebook: "Notebook", chalkboard: "Chalkboard", terminal: "Terminal", night: "Night" };
 function applyLook() {
   const nb = notebookSettings();
-  const theme = THEME_NAMES[nb.theme] ? nb.theme : "notebook";
+  /* Notebook moved Plain look users to Night */
+  const theme = nb.plain ? "night" : THEME_NAMES[nb.theme] ? nb.theme : "notebook";
   document.body.dataset.theme = theme;
-  document.body.classList.toggle("plain", !!nb.plain);
   const note = document.getElementById("set-theme-note");
-  if (note) note.textContent = "Follows Notebook: " + THEME_NAMES[theme] + (nb.plain ? ", plain look" : "") +
+  if (note) note.textContent = "Follows Notebook: " + THEME_NAMES[theme] +
     ". Change it in Notebook's settings, under Look, and Chalk TV changes with it.";
 }
 applyLook();
