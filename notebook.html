@@ -763,7 +763,12 @@
           <div class="cards" id="junk"></div>
         </section>
 
-        <section class="panel flush" id="panel-requests"></section>
+        <section class="panel flush" id="panel-requests">
+          <div id="requests-soon" hidden>
+            <p class="lead"><b>Requests.</b> Coming soon.</p>
+            <p class="empty-note">Voting on what gets added next isn't ready yet. Check back later.</p>
+          </div>
+        </section>
 
         <section class="panel flush" id="panel-dev"></section>
 
@@ -1355,11 +1360,14 @@
       'Junk Drawer': '<svg viewBox="0 0 16 16"><rect x="1.5" y="3" width="13" height="10" rx="1"/><path d="M1.5 8h13M6.5 5.5h3M6.5 10.5h3"/></svg>',
     };
 
+    // Requests shows "Coming soon" instead of loading requests.html; set false to bring it back
+    const REQUESTS_SOON = true;
+
     function buildQuick() {
       const apps = [
         { name: 'Games', panel: 'games', count: LIST.games.length },
         { name: 'Tools', panel: 'tools', count: LIST.tools.length },
-        { name: 'Requests', panel: 'requests', count: 'vote' },
+        { name: 'Requests', panel: 'requests', count: REQUESTS_SOON ? 'soon' : 'vote' },
         { name: 'Chat', run: openChat, count: 'new tab' },
       ];
       if (settings.junk) apps.push({ name: 'Junk Drawer', panel: 'junk', count: LIST.junk.length });
@@ -1521,7 +1529,10 @@
 
       if (name === 'home') buildHome();
 
-      if (name === 'requests' && !requestsFrame) {
+      if (name === 'requests' && REQUESTS_SOON) {
+        $('panel-requests').classList.remove('flush');
+        $('requests-soon').hidden = false;
+      } else if (name === 'requests' && !requestsFrame) {
         requestsFrame = document.createElement('iframe');
         requestsFrame.className = 'frame blend';
         requestsFrame.title = 'Requests';
