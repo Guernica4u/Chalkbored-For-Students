@@ -251,6 +251,7 @@
   .empty { margin: auto; font-size: 0.78rem; color: var(--muted); text-align: center; line-height: 1.8; }
 
   form {
+    position: relative;
     display: flex;
     gap: 0.6rem;
     padding: 0.9rem 1.25rem;
@@ -364,6 +365,130 @@
   .card .gate-row { margin-top: 0.8rem; }
   .card label { display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; color: var(--muted); margin-bottom: 0.7rem; cursor: pointer; }
 
+  /* ---------------- people ---------------- */
+
+  .app.people-open { grid-template-columns: 220px 1fr 230px; }
+  .people { display: none; flex-direction: column; min-width: 0; min-height: 0; background: var(--panel); border-left: 1px solid var(--line); }
+  .app.people-open .people { display: flex; }
+  .people-head { display: flex; flex-direction: column; gap: 0.6rem; padding: 0.9rem 0.9rem 0.7rem; border-bottom: 1px solid var(--line); }
+  .people-tabs { display: flex; gap: 0.3rem; }
+  .people-tabs button {
+    flex: 1;
+    padding: 0.3rem 0.4rem;
+    background: none;
+    border: 1px solid var(--line);
+    color: var(--muted);
+    font: inherit;
+    font-size: 0.66rem;
+    cursor: pointer;
+  }
+  .people-tabs button.on { color: var(--accent); border-color: var(--accent-dim); background: #12171a; }
+  #people-filter { background: var(--panel-2); border: 1px solid var(--line); color: var(--ink); font: inherit; font-size: 0.75rem; padding: 0.4rem 0.55rem; outline: none; }
+  #people-filter:focus { border-color: var(--accent-dim); }
+  #people-list { flex: 1; overflow-y: auto; padding: 0.3rem 0.4rem; }
+  .people-group { margin: 0.7rem 0.5rem 0.25rem; font-size: 0.58rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+  .person {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.38rem 0.5rem;
+    background: none;
+    border: 0;
+    color: var(--ink);
+    font: inherit;
+    font-size: 0.78rem;
+    text-align: left;
+    cursor: pointer;
+  }
+  .person:hover, .person:focus-visible { background: var(--panel-2); outline: none; }
+  .pdot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--line); }
+  .person.online .pdot, .suggest .online .pdot { background: var(--accent); }
+  .person:not(.online) .pname { color: var(--muted); }
+  .ptag { margin-left: auto; font-size: 0.56rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent-dim); }
+  .people-close { display: none; }
+  .people-note { margin: 0; padding: 0.6rem 0.9rem 0.9rem; font-size: 0.66rem; color: var(--muted); }
+
+  /* ---------------- mentions ---------------- */
+
+  .badge {
+    display: inline-block;
+    min-width: 1.3em;
+    margin-left: 0.35rem;
+    padding: 0 0.3rem;
+    background: var(--danger);
+    color: var(--bg);
+    font-size: 0.6rem;
+    font-weight: 700;
+    line-height: 1.5;
+    text-align: center;
+    border-radius: 999px;
+  }
+  .at { color: var(--accent); }
+  .at.at-me { background: rgba(110, 231, 168, 0.15); padding: 0 0.15rem; }
+  .row.pinged .bubble { border-color: var(--accent); box-shadow: inset 2px 0 0 var(--accent); }
+  .row.flash .bubble { animation: flash 1.8s ease; }
+  @keyframes flash { 0%, 45% { background: #1b3a2c; } }
+
+  .mn { display: block; width: 100%; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+  .mn:hover, .mn:focus-visible { border-color: var(--accent-dim); outline: none; }
+  .mn.unseen { border-left: 2px solid var(--accent); }
+  .rp-head .btns { display: flex; gap: 0.4rem; }
+
+  /* @ autocomplete above the text box */
+  .suggest {
+    position: absolute;
+    left: 1.25rem;
+    bottom: calc(100% - 0.35rem);
+    z-index: 4;
+    min-width: 220px;
+    max-height: 230px;
+    overflow-y: auto;
+    padding: 0.25rem;
+    background: var(--panel);
+    border: 1px solid var(--accent-dim);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  }
+  .suggest button {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.35rem 0.5rem;
+    background: none;
+    border: 0;
+    color: var(--ink);
+    font: inherit;
+    font-size: 0.78rem;
+    text-align: left;
+    cursor: pointer;
+  }
+  .suggest button.on, .suggest button:hover { background: #12171a; color: var(--accent); }
+  .suggest .ptag { color: var(--muted); }
+
+  /* pop-up when someone @s you */
+  #toasts { position: fixed; right: 1rem; bottom: 4.6rem; z-index: 9; display: flex; flex-direction: column; gap: 0.5rem; align-items: flex-end; }
+  .toast {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    max-width: 330px;
+    padding: 0.7rem 0.85rem;
+    background: var(--panel);
+    border: 1px solid var(--accent-dim);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+    font-size: 0.76rem;
+    line-height: 1.5;
+    animation: toastin 0.25s ease;
+  }
+  @keyframes toastin { from { opacity: 0; transform: translateY(8px); } }
+
+  @media (max-width: 680px) {
+    .app.people-open { grid-template-columns: 1fr; }
+    .people { position: fixed; top: 0; right: 0; bottom: 0; z-index: 6; width: min(290px, 86vw); box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5); }
+    .people-close { display: block; align-self: flex-end; }
+  }
+
   @media (max-width: 680px) {
     .app { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
     .rail { flex-direction: row; overflow-x: auto; border-right: none; border-bottom: 1px solid var(--line); }
@@ -377,7 +502,7 @@
 </head>
 <body>
 
-<div class="app">
+<div class="app" id="app">
   <nav class="rail">
     <div class="rail-section">
       <div class="rail-head"><span>Rooms</span><button class="mini" id="new-room" type="button">+ room</button></div>
@@ -396,6 +521,7 @@
       <button class="link" id="mod-tools" type="button" hidden>Ban / unban someone</button>
       <button class="link" id="word-list" type="button" hidden>Blocked words</button>
       <button class="link" id="room-mods" type="button" hidden>Add a room mod</button>
+      <button class="link" id="desk-alerts" type="button">Desktop alerts: off</button>
       <button class="link" id="sign-out" type="button">Sign out</button>
     </div>
   </nav>
@@ -406,16 +532,41 @@
       <span class="safe-tag">moderated and safe for students</span>
       <span class="spacer"></span>
       <span class="presence"><span class="dot"></span><span id="online">—</span></span>
+      <button class="mini" id="open-mentions" type="button" title="Messages that @ you">@ mentions<span class="badge" id="mention-badge" hidden></span></button>
+      <button class="mini" id="toggle-people" type="button" aria-expanded="false" aria-controls="people">people</button>
       <button class="mini" id="delete-room" type="button" hidden>delete room</button>
     </header>
 
     <div id="messages"></div>
 
     <form id="composer" autocomplete="off">
-      <input id="text" maxlength="500" placeholder="Say something…" disabled>
+      <div class="suggest" id="suggest" role="listbox" aria-label="People to mention" hidden></div>
+      <input id="text" maxlength="500" placeholder="Say something… (type @ to mention someone)" disabled>
       <button class="primary" type="submit" disabled>Send</button>
     </form>
     <p class="compose-note" id="compose-note" role="status"></p>
+  </div>
+
+  <aside class="people" id="people" aria-label="People">
+    <div class="people-head">
+      <div class="people-tabs" role="tablist">
+        <button type="button" data-scope="room" class="on" id="scope-room">This room</button>
+        <button type="button" data-scope="all" id="scope-all">Everyone</button>
+      </div>
+      <input id="people-filter" placeholder="Find someone…" autocomplete="off" aria-label="Find someone">
+      <button class="mini people-close" id="people-close" type="button">close</button>
+    </div>
+    <div id="people-list"></div>
+    <p class="people-note">Click a name to @mention them.</p>
+  </aside>
+</div>
+
+<div id="toasts" aria-live="polite"></div>
+
+<div class="veil hide" id="mentions-veil">
+  <div class="card wide" role="dialog" aria-labelledby="mentions-title">
+    <div class="rp-head"><h3 id="mentions-title">Mentions</h3><span class="btns"><button class="mini" id="mentions-read" type="button">mark all read</button><button class="mini" id="mentions-close" type="button">close</button></span></div>
+    <div id="mentions-list"></div>
   </div>
 </div>
 
@@ -472,7 +623,10 @@ const CONFIGURED = !SUPABASE_URL.startsWith('PASTE') && !SUPABASE_ANON_KEY.start
 const db = CONFIGURED ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
 const $ = (id) => document.getElementById(id);
-const state = { me: null, rooms: [], room: null, channels: [], channel: null, membership: {}, presence: null, feed: null };
+const state = {
+  me: null, rooms: [], room: null, channels: [], channel: null, membership: {}, presence: null, feed: null,
+  members: [], everyone: [], online: new Set(), peopleScope: 'room', unseen: 0, mentionsReady: true,
+};
 
 // ------------------------------------------------------------------ prompt
 function ask({ title, text, placeholder, second, check }) {
@@ -562,7 +716,7 @@ async function loadRooms() {
 
   if (!state.room && state.rooms.length) {
     const first = state.rooms.find((r) => r.is_global) || state.rooms[0];
-    openRoom(first);
+    await openRoom(first);
   }
 }
 
@@ -615,6 +769,7 @@ async function openRoom(room) {
   paintRooms();
   await loadChannels();
   watchPresence();
+  loadMembers();
 }
 
 function canAddChannel(room) {
@@ -668,7 +823,11 @@ $('room-mods').onclick = async () => {
 
 // ------------------------------------------------------------------ channels
 async function loadChannels() {
-  const { data } = await db.from('channels').select('id, name, room_id').eq('room_id', state.room.id).order('created_at');
+  const room = state.room;
+  const { data } = await db.from('channels').select('id, name, room_id').eq('room_id', room.id).order('created_at');
+  if (state.room !== room) return;   // switched rooms while this was loading
+  const keep = state.channel && (data || []).find((c) => c.id === state.channel.id);
+  if (keep) { state.channels = data; paintChannels(); return; }
   state.channels = data || [];
   paintChannels();
   if (state.channels.length) openChannel(state.channels[0]);
@@ -726,11 +885,13 @@ async function openChannel(ch) {
     .order('id', { ascending: false })
     .limit(80);
 
+  if (state.channel !== ch) return;   // clicked somewhere else while this was loading
   const rows = (data || []).reverse();
   $('messages').innerHTML = '';
   if (!rows.length) renderEmpty('Nothing here yet. Say something.');
   rows.forEach(addMessage);
   scrollDown();
+  markChannelSeen(ch.id);
   watchFeed();
 }
 
@@ -783,7 +944,7 @@ function addMessage(m) {
 
   const bubble = document.createElement('div');
   bubble.className = 'bubble';
-  bubble.textContent = m.body;
+  if (renderBody(bubble, m.body) && !mine) row.classList.add('pinged');
 
   row.append(meta, bubble);
   $('messages').appendChild(row);
@@ -1058,6 +1219,399 @@ $('word-list').onclick = async () => {
   else $('word-list').click();
 };
 
+// ------------------------------------------------------------------ @names in messages
+// same pattern the database uses, so what's highlighted is what pings
+const AT_RX = /(^|[^A-Za-z0-9_@])@([A-Za-z0-9_.-]{2,20})/g;
+
+// writes the message into `el` with @names highlighted; true if it @s you
+function renderBody(el, body) {
+  const me = state.me ? state.me.username.toLowerCase() : '';
+  let last = 0, pingsMe = false, match;
+  AT_RX.lastIndex = 0;
+  while ((match = AT_RX.exec(body))) {
+    const start = match.index + match[1].length;
+    const name = match[2].replace(/[.-]+$/, '');
+    el.append(body.slice(last, start));
+    const at = document.createElement('span');
+    const isMe = name.toLowerCase() === me;
+    at.className = 'at' + (isMe ? ' at-me' : '');
+    at.textContent = '@' + name;
+    el.append(at);
+    if (isMe) pingsMe = true;
+    last = start + 1 + name.length;
+  }
+  el.append(body.slice(last));
+  return pingsMe;
+}
+
+// ------------------------------------------------------------------ people
+async function loadMembers() {
+  if (!state.room) return;
+  const room = state.room;
+  const { data } = await db.from('room_members')
+    .select('user_id, role, profiles(username, is_mod)')
+    .eq('room_id', room.id)
+    .limit(1000);
+  if (state.room !== room) return;
+  state.members = (data || []).filter((m) => m.profiles).map((m) => ({
+    id: m.user_id, username: m.profiles.username, is_mod: m.profiles.is_mod, role: m.role,
+  }));
+  paintPeople();
+}
+
+let loadingEveryone = null;
+function loadEveryone() {
+  if (!loadingEveryone) {
+    loadingEveryone = db.from('profiles').select('id, username, is_mod').order('username').limit(2000)
+      .then(({ data }) => {
+        state.everyone = (data || []).map((p) => ({ id: p.id, username: p.username, is_mod: p.is_mod, role: null }));
+        paintPeople();
+      });
+  }
+  return loadingEveryone;
+}
+
+// who's online anywhere in the chat
+function watchEveryone() {
+  const ch = db.channel('who:everyone', { config: { presence: { key: state.me.id } } });
+  ch.on('presence', { event: 'sync' }, () => {
+    state.online = new Set(Object.keys(ch.presenceState()));
+    paintPeople();
+  }).subscribe(async (status) => {
+    if (status === 'SUBSCRIBED') await ch.track({ username: state.me.username });
+  });
+}
+
+function personTag(p) {
+  if (p.id === state.me.id) return 'you';
+  if (p.role === 'owner') return 'owner';
+  if (p.role === 'mod') return 'room mod';
+  if (p.is_mod) return 'site mod';
+  return '';
+}
+
+function paintPeople() {
+  const list = $('people-list');
+  if (!$('people').offsetParent && !$('app').classList.contains('people-open')) return;
+  const q = $('people-filter').value.trim().toLowerCase();
+  $('scope-room').textContent = 'This room (' + state.members.length + ')';
+  $('scope-all').textContent = 'Everyone (' + (state.everyone.length || '…') + ')';
+
+  const pool = (state.peopleScope === 'room' ? state.members : state.everyone)
+    .filter((p) => !q || p.username.toLowerCase().includes(q))
+    .sort((a, b) => a.username.localeCompare(b.username));
+  const online = pool.filter((p) => state.online.has(p.id));
+  const offline = pool.filter((p) => !state.online.has(p.id));
+
+  list.innerHTML = '';
+  if (!pool.length) {
+    const none = document.createElement('p');
+    none.className = 'people-note';
+    none.textContent = q ? 'No one matches “' + q + '”.' : 'No one here yet.';
+    list.appendChild(none);
+    return;
+  }
+
+  const group = (label, people) => {
+    if (!people.length) return;
+    const head = document.createElement('p');
+    head.className = 'people-group';
+    head.textContent = label + ' — ' + people.length;
+    list.appendChild(head);
+    people.forEach((p) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'person' + (state.online.has(p.id) ? ' online' : '');
+      b.innerHTML = '<span class="pdot"></span><span class="pname"></span><span class="ptag"></span>';
+      b.querySelector('.pname').textContent = p.username;
+      b.querySelector('.ptag').textContent = personTag(p);
+      b.title = p.id === state.me.id ? 'That’s you' : 'Mention @' + p.username;
+      if (p.id !== state.me.id) b.onclick = () => insertMention(p.username);
+      list.appendChild(b);
+    });
+  };
+  group('Online', online);
+  group('Offline', offline);
+}
+
+function insertMention(name) {
+  const box = $('text');
+  if (box.disabled) return;
+  const v = box.value;
+  box.value = (v && !/\s$/.test(v) ? v + ' ' : v) + '@' + name + ' ';
+  box.focus();
+  box.setSelectionRange(box.value.length, box.value.length);
+}
+
+function setPeopleOpen(open) {
+  $('app').classList.toggle('people-open', open);
+  $('toggle-people').setAttribute('aria-expanded', String(open));
+  try { localStorage.setItem('chat-people-open', open ? '1' : '0'); } catch (e) {}
+  if (open) { loadEveryone(); paintPeople(); }
+}
+function restorePeople() {
+  let open = false;
+  try { open = localStorage.getItem('chat-people-open') === '1'; } catch (e) {}
+  if (open && window.innerWidth > 680) setPeopleOpen(true);
+}
+
+$('toggle-people').onclick = () => setPeopleOpen(!$('app').classList.contains('people-open'));
+$('people-close').onclick = () => setPeopleOpen(false);
+$('people-filter').addEventListener('input', paintPeople);
+document.querySelectorAll('.people-tabs button').forEach((b) => {
+  b.onclick = () => {
+    state.peopleScope = b.dataset.scope;
+    document.querySelectorAll('.people-tabs button').forEach((x) => x.classList.toggle('on', x === b));
+    if (state.peopleScope === 'all') loadEveryone();
+    paintPeople();
+  };
+});
+
+// ------------------------------------------------------------------ @ autocomplete
+const suggestEl = $('suggest');
+let suggestItems = [];
+let suggestAt = 0;
+
+// the @word the caret is in, if any
+function mentionQuery() {
+  const box = $('text');
+  const pos = box.selectionStart;
+  const m = box.value.slice(0, pos).match(/(?:^|[^A-Za-z0-9_@])@([A-Za-z0-9_.-]{0,20})$/);
+  return m ? { q: m[1].toLowerCase(), start: pos - m[1].length - 1, end: pos } : null;
+}
+
+function candidates(q) {
+  const seen = new Set();
+  const out = [];
+  const add = (p) => {
+    if (p.id === state.me.id || seen.has(p.id) || !p.username.toLowerCase().startsWith(q)) return;
+    seen.add(p.id);
+    out.push(p);
+  };
+  // people in this room first, online before offline, then everyone else
+  const byOnline = (list) => list.slice().sort((a, b) => (state.online.has(b.id) - state.online.has(a.id)) || a.username.localeCompare(b.username));
+  byOnline(state.members).forEach(add);
+  byOnline(state.everyone).forEach(add);
+  return out.slice(0, 8);
+}
+
+function hideSuggest() {
+  suggestEl.hidden = true;
+  suggestItems = [];
+  suggestAt = 0;
+}
+
+function updateSuggest() {
+  const mq = mentionQuery();
+  if (!mq) return hideSuggest();
+  if (!state.everyone.length) loadEveryone().then(() => { if (mentionQuery()) updateSuggest(); });
+  suggestItems = candidates(mq.q);
+  if (!suggestItems.length) return hideSuggest();
+  suggestAt = Math.min(suggestAt, suggestItems.length - 1);
+
+  suggestEl.innerHTML = '';
+  suggestItems.forEach((p, i) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.setAttribute('role', 'option');
+    b.setAttribute('aria-selected', String(i === suggestAt));
+    b.className = (i === suggestAt ? 'on ' : '') + (state.online.has(p.id) ? 'online' : '');
+    b.innerHTML = '<span class="pdot"></span><span></span><span class="ptag"></span>';
+    b.children[1].textContent = '@' + p.username;
+    b.querySelector('.ptag').textContent = state.members.some((m) => m.id === p.id) ? 'in room' : '';
+    b.addEventListener('mousedown', (e) => e.preventDefault());   // keep focus in the box
+    b.onclick = () => pickSuggest(i);
+    suggestEl.appendChild(b);
+  });
+  suggestEl.hidden = false;
+}
+
+function pickSuggest(i) {
+  const mq = mentionQuery();
+  const p = suggestItems[i];
+  if (!mq || !p) return hideSuggest();
+  const box = $('text');
+  box.value = box.value.slice(0, mq.start) + '@' + p.username + ' ' + box.value.slice(mq.end);
+  const caret = mq.start + p.username.length + 2;
+  box.setSelectionRange(caret, caret);
+  hideSuggest();
+  box.focus();
+}
+
+$('text').addEventListener('input', () => { suggestAt = 0; updateSuggest(); });
+$('text').addEventListener('click', updateSuggest);
+$('text').addEventListener('blur', () => setTimeout(hideSuggest, 150));
+$('text').addEventListener('keydown', (e) => {
+  if (suggestEl.hidden) return;
+  const n = suggestItems.length;
+  if (e.key === 'ArrowDown') { e.preventDefault(); suggestAt = (suggestAt + 1) % n; updateSuggest(); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); suggestAt = (suggestAt - 1 + n) % n; updateSuggest(); }
+  else if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); pickSuggest(suggestAt); }
+  else if (e.key === 'Escape') { e.preventDefault(); hideSuggest(); }
+});
+
+// ------------------------------------------------------------------ mentions inbox
+async function refreshMentionBadge() {
+  const { count, error } = await db.from('mentions').select('id', { count: 'exact', head: true })
+    .eq('user_id', state.me.id).eq('seen', false);
+  state.mentionsReady = !error;
+  state.unseen = error ? 0 : (count || 0);
+  const badge = $('mention-badge');
+  badge.hidden = !state.unseen;
+  badge.textContent = state.unseen > 99 ? '99+' : String(state.unseen);
+  document.title = (state.unseen ? '(' + state.unseen + ') ' : '') + 'Chalk Chat';
+}
+
+async function markSeen(ids) {
+  await db.rpc('mark_mentions_seen', { p_ids: ids });
+  refreshMentionBadge();
+}
+
+async function markChannelSeen(channelId) {
+  if (!state.unseen) return;
+  const { data } = await db.from('mentions').select('id').eq('user_id', state.me.id).eq('seen', false).eq('channel_id', channelId);
+  if (data && data.length) markSeen(data.map((d) => d.id));
+}
+
+async function paintMentions() {
+  const list = $('mentions-list');
+  list.innerHTML = '<p class="note">Loading…</p>';
+  const { data, error } = await db.from('mentions')
+    .select('id, seen, created_at, room_id, channel_id, message_id, messages(body), author:profiles!mentions_by_user_fkey(username), rooms(name), channels(name)')
+    .eq('user_id', state.me.id)
+    .order('created_at', { ascending: false })
+    .limit(50);
+  list.innerHTML = '';
+
+  if (error) {
+    const p = document.createElement('p');
+    p.className = 'err';
+    p.textContent = /mentions|relationship|schema/.test(error.message)
+      ? 'Mentions aren’t set up yet. Run SCRIPTS/chat-mentions.sql in Supabase.' : error.message;
+    list.appendChild(p);
+    return;
+  }
+  if (!data.length) {
+    const p = document.createElement('p');
+    p.className = 'note';
+    p.textContent = 'No mentions yet. When someone writes @' + state.me.username + ', it shows up here.';
+    list.appendChild(p);
+    return;
+  }
+
+  data.forEach((r) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'rp mn' + (r.seen ? '' : ' unseen');
+    const top = document.createElement('div');
+    top.className = 'rp-top';
+    const who = document.createElement('span');
+    who.innerHTML = '<b></b> in ';
+    who.querySelector('b').textContent = '@' + ((r.author && r.author.username) || 'someone');
+    who.append(((r.rooms && r.rooms.name) || 'a room') + ' / #' + ((r.channels && r.channels.name) || '…'));
+    const when = document.createElement('span');
+    when.textContent = new Date(r.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    top.append(who, when);
+    const body = document.createElement('div');
+    body.className = 'rp-body';
+    if (r.messages) renderBody(body, r.messages.body);
+    else body.textContent = '(message deleted)';
+    b.append(top, body);
+    b.onclick = async () => {
+      $('mentions-veil').classList.add('hide');
+      if (!r.seen) markSeen([r.id]);
+      if (r.messages) jumpTo(r.room_id, r.channel_id, r.message_id);
+    };
+    list.appendChild(b);
+  });
+}
+
+$('open-mentions').onclick = () => { $('mentions-veil').classList.remove('hide'); paintMentions(); };
+$('mentions-close').onclick = () => $('mentions-veil').classList.add('hide');
+$('mentions-veil').addEventListener('click', (e) => { if (e.target.id === 'mentions-veil') $('mentions-close').click(); });
+$('mentions-read').onclick = async () => { await markSeen(null); paintMentions(); };
+
+// go to a message: open its room and channel, then scroll to it
+async function jumpTo(roomId, channelId, msgId) {
+  const room = state.rooms.find((r) => r.id === roomId);
+  if (!room) return;
+  if (!state.room || state.room.id !== roomId) await openRoom(room);
+  if (!state.room || state.room.id !== roomId) return;   // wrong password, or cancelled
+  const ch = state.channels.find((c) => c.id === channelId);
+  if (ch && (!state.channel || state.channel.id !== ch.id)) await openChannel(ch);
+  if (!msgId) return;
+  const el = $('messages').querySelector('[data-id="' + msgId + '"]');
+  if (!el) return;
+  el.scrollIntoView({ block: 'center' });
+  el.classList.add('flash');
+  setTimeout(() => el.classList.remove('flash'), 2000);
+}
+
+// live: someone @s you
+function watchMentions() {
+  db.channel('mentions:' + state.me.id)
+    .on('postgres_changes',
+      { event: '*', schema: 'public', table: 'mentions', filter: 'user_id=eq.' + state.me.id },
+      ({ eventType, new: row }) => {
+        if (eventType === 'INSERT') onMention(row);
+        else refreshMentionBadge();
+      })
+    .subscribe();
+}
+
+async function onMention(row) {
+  // already looking at that channel: it counts as read
+  if (state.channel && state.channel.id === row.channel_id && !document.hidden) { markSeen([row.id]); return; }
+  refreshMentionBadge();
+  const [{ data: author }, { data: ch }] = await Promise.all([
+    db.from('profiles').select('username').eq('id', row.by_user).maybeSingle(),
+    db.from('channels').select('name').eq('id', row.channel_id).maybeSingle(),
+  ]);
+  const text = '@' + ((author && author.username) || 'someone') + ' mentioned you in #' + ((ch && ch.name) || 'a channel');
+  showToast(text, async () => { await jumpTo(row.room_id, row.channel_id, row.message_id); markSeen([row.id]); });
+  desktopAlert(text);
+}
+
+function showToast(text, onOpen) {
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.setAttribute('role', 'status');
+  const span = document.createElement('span');
+  span.textContent = text;
+  const open = document.createElement('button');
+  open.className = 'mini';
+  open.type = 'button';
+  open.textContent = 'open';
+  open.onclick = () => { t.remove(); onOpen(); };
+  t.append(span, open);
+  $('toasts').appendChild(t);
+  setTimeout(() => t.remove(), 8000);
+}
+
+// ------------------------------------------------------------------ desktop alerts (opt in)
+const ALERT_STORE = 'chat-desktop-alerts';
+function alertsOn() {
+  try {
+    return localStorage.getItem(ALERT_STORE) === '1' && 'Notification' in window && Notification.permission === 'granted';
+  } catch (e) { return false; }
+}
+function paintAlerts() { $('desk-alerts').textContent = 'Desktop alerts: ' + (alertsOn() ? 'on' : 'off'); }
+function desktopAlert(text) {
+  if (!alertsOn() || !document.hidden) return;   // only when you're not looking
+  try { new Notification('New mention', { body: text, tag: 'chalk-mention' }); } catch (e) {}
+}
+$('desk-alerts').onclick = async () => {
+  if (!('Notification' in window)) return alert('This browser can’t show desktop alerts.');
+  if (alertsOn()) {
+    try { localStorage.setItem(ALERT_STORE, '0'); } catch (e) {}
+    return paintAlerts();
+  }
+  const answer = await Notification.requestPermission();
+  if (answer === 'granted') { try { localStorage.setItem(ALERT_STORE, '1'); } catch (e) {} }
+  else alert('Desktop alerts are blocked for this site. You can allow them in your browser’s site settings.');
+  paintAlerts();
+};
+
 // ------------------------------------------------------------------ go
 async function start() {
   const { data: { user } } = await db.auth.getUser();
@@ -1091,6 +1645,16 @@ async function start() {
   }
 
   await loadRooms();
+
+  watchEveryone();
+  watchMentions();
+  refreshMentionBadge();
+  paintAlerts();
+  restorePeople();
+
+  // opened from a mention alert: chalk-chat.html?room=…&channel=…&msg=…
+  const link = new URLSearchParams(location.search);
+  if (link.get('room')) jumpTo(link.get('room'), link.get('channel'), link.get('msg'));
 
   // rooms and channels appearing or vanishing for everyone
   db.channel('structure')

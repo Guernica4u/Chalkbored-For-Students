@@ -204,6 +204,37 @@
   .nav-btn.active::before { opacity: 1; top: 5px; bottom: 5px; }
   .nav-btn svg { flex: none; width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
   .nav-btn .out { margin-left: auto; width: 13px; height: 13px; opacity: 0.6; }
+  .ping {
+    margin-left: auto;
+    min-width: 1.4em;
+    padding: 0 0.35rem;
+    background: var(--danger);
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 700;
+    line-height: 1.5;
+    text-align: center;
+    border-radius: 999px;
+  }
+  .ping + .out { margin-left: 0.4rem; }
+
+  /* pop-up when someone @s you in Chalk Chat */
+  .nb-toasts { position: fixed; right: 1.2rem; bottom: 4.2rem; z-index: 35; display: flex; flex-direction: column; gap: 0.5rem; align-items: flex-end; }
+  .nb-toast {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    max-width: 340px;
+    padding: 0.75rem 0.9rem;
+    background: var(--card);
+    border: 1px solid var(--edge);
+    border-left: 3px solid var(--accent);
+    border-radius: 8px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+    font-size: 0.9rem;
+    animation: rise 0.3s ease;
+  }
+  .nb-toast .x { background: none; border: 0; color: var(--pencil); font-size: 1.1rem; line-height: 1; cursor: pointer; }
   .tally { margin-left: auto; font-size: 0.75rem; color: var(--pencil); font-weight: 400; font-variant-numeric: tabular-nums; }
 
   .rail-foot { margin-top: auto; padding: 1rem 1.2rem; font-size: 0.8rem; }
@@ -693,6 +724,7 @@
         <button class="nav-btn nav-out" type="button" id="open-chat" style="--tab:#5fb3a1" title="Opens in a new tab">
           <svg viewBox="0 0 16 16"><path d="M2 3.5h12v8H6.5L3 14.2V11.5H2z"/></svg>
           <span>Chat</span>
+          <span class="ping" id="chat-pings" hidden></span>
           <svg class="out" viewBox="0 0 16 16" aria-hidden="true"><path d="M9 3h4v4M13 3 7.5 8.5M11.5 9.5V13h-8V4.5H7"/></svg>
         </button>
         <button class="nav-btn nav-out" type="button" id="open-tv" style="--tab:#c9a45f" title="Opens in a new tab">
@@ -940,6 +972,7 @@
         { name: 'Snow Rider 3D',   path: 'GAMES/How-Sleds-Work/index.html' },
         { name: 'Retro Bowl',      path: 'GAMES/rb-main/index.html' },
         { name: 'Escape Road',     path: 'GAMES/Learn-Car-Maintenance/index.html' },
+        { name: 'Slope',           path: 'GAMES/Slope-main/Slope-main/index.html' },
       ],
       tools: [
         { name: 'Chalk OS', path: 'TOOLS/CHALK-OS/index.html',
@@ -1559,8 +1592,8 @@
 
     // chat lives in its own tab, cloaked like a game
     const CHAT_PATH = 'chalk-chat.html';
-    function openChat() { openTab(CHAT_PATH, DEFAULT_CLOAK); }
-    $('open-chat').addEventListener('click', openChat);
+    function openChat(query) { openTab(CHAT_PATH + (query || ''), DEFAULT_CLOAK); }
+    $('open-chat').addEventListener('click', () => openChat());
 
     // Chalk TV too; it hands key presses from the tide frame up to its own page,
     // so the panic key armed on that page works while a video has focus
@@ -1883,6 +1916,74 @@
     }
 
     setTimeout(() => { const c = document.querySelector('.curtain'); if (c) c.remove(); }, 1200);
+  </script>
+  <div class="nb-toasts" id="nb-toasts" aria-live="polite"></div>
+
+  <script type="module">
+    // @mentions from Chalk Chat: a count on the Chat button, and a pop-up when
+    // someone @s you. Only loads for people signed in to the chat in this browser.
+    const SUPABASE_URL = 'https://ifyhdysaugcivmvltuyb.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_CBXtSVX-0r8a0GGV9B4znA_8JXfxaOD';
+    const SESSION_KEY = 'sb-ifyhdysaugcivmvltuyb-auth-token';
+
+    let signedIn = false;
+    try { signedIn = !!localStorage.getItem(SESSION_KEY); } catch (e) {}
+    if (signedIn) watchPings().catch(() => {});
+
+    async function watchPings() {
+      const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+      const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      const { data: { user } } = await db.auth.getUser();
+      if (!user) return;
+      const badge = document.getElementById('chat-pings');
+
+      async function refresh() {
+        const { count, error } = await db.from('mentions').select('id', { count: 'exact', head: true })
+          .eq('user_id', user.id).eq('seen', false);
+        if (error) return;   // mentions not set up yet
+        badge.hidden = !count;
+        badge.textContent = count > 99 ? '99+' : String(count);
+        badge.title = count + ' unread mention' + (count === 1 ? '' : 's');
+      }
+      await refresh();
+
+      db.channel('nb-mentions:' + user.id)
+        .on('postgres_changes',
+          { event: '*', schema: 'public', table: 'mentions', filter: 'user_id=eq.' + user.id },
+          async ({ eventType, new: row }) => {
+            refresh();
+            if (eventType !== 'INSERT') return;
+            const [{ data: author }, { data: ch }] = await Promise.all([
+              db.from('profiles').select('username').eq('id', row.by_user).maybeSingle(),
+              db.from('channels').select('name').eq('id', row.channel_id).maybeSingle(),
+            ]);
+            toast('@' + ((author && author.username) || 'someone') + ' mentioned you in #' + ((ch && ch.name) || 'chat'),
+              '?room=' + row.room_id + '&channel=' + row.channel_id + '&msg=' + row.message_id);
+          })
+        .subscribe();
+    }
+
+    function toast(text, query) {
+      const box = document.createElement('div');
+      box.className = 'nb-toast';
+      box.setAttribute('role', 'status');
+      const span = document.createElement('span');
+      span.textContent = text;
+      const open = document.createElement('button');
+      open.className = 'btn primary';
+      open.type = 'button';
+      open.textContent = 'Open';
+      open.onclick = () => { box.remove(); if (typeof openChat === 'function') openChat(query); };
+      const close = document.createElement('button');
+      close.className = 'x';
+      close.type = 'button';
+      close.setAttribute('aria-label', 'Dismiss');
+      close.textContent = '\u00d7';
+      close.onclick = () => box.remove();
+      box.append(span, open, close);
+      document.getElementById('nb-toasts').appendChild(box);
+      setTimeout(() => box.remove(), 10000);
+    }
   </script>
 </body>
 </html>
