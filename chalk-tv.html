@@ -68,11 +68,11 @@ const TARGET_URL = "youtube.com";
 
 /* Chalk TV opens TARGET_URL through the tide, the same way Seahorse does in
    CHALK OS: the tide server on your own machine opens the connections, and
-   Scramjet - a service worker - rewrites what comes back so the site works.
+   Scramjet 2 rewrites what comes back so the site works.
 
    It borrows CHALK OS's tide files and its service worker instead of keeping
-   copies. Scramjet keeps one set of settings per website, so both pages have
-   to set it up exactly the same way or they would undo each other.
+   copies. Scramjet 2 runs the tide from this page, and the service worker
+   only hands each request over to it.
 
    The key is never written in this file. It is only kept in this browser if
    "Remember tide key" is turned on in Notebook's settings. */
@@ -164,63 +164,58 @@ function loadScript(src) {
     document.head.appendChild(s);
   });
 }
-/* A half-made Scramjet database never repairs itself. Throw it away and try once more. */
-async function initController(ctl) {
-  try { await ctl.init(); }
-  catch (err) {
-    const msg = String((err && err.message) || err);
-    if (!/object stores? was not found|NotFoundError/i.test(msg)) throw err;
-    for (const reg of await navigator.serviceWorker.getRegistrations()) await reg.unregister();
-    await new Promise(done => {
-      const req = indexedDB.deleteDatabase("$scramjet");
-      req.onsuccess = req.onerror = req.onblocked = done;
-    });
-    await ctl.init();
-  }
-}
 /* navigator.serviceWorker.ready only settles for a worker that covers this
    page, and this page sits outside TOOLS/CHALK-OS/ - so wait on the
    registration itself */
 function workerActive(reg) {
-  if (reg.active) return Promise.resolve();
+  if (reg.active) return Promise.resolve(reg.active);
   const w = reg.installing || reg.waiting;
   return new Promise((ok, fail) => {
     const timer = setTimeout(() => fail(new Error("The tide's service worker did not start.")), 15000);
     w.addEventListener("statechange", () => {
-      if (w.state === "activated") { clearTimeout(timer); ok(); }
+      if (w.state === "activated") { clearTimeout(timer); ok(reg.active || w); }
       else if (w.state === "redundant") { clearTimeout(timer); fail(new Error("The tide's service worker did not start.")); }
     });
   });
 }
 async function startTide(key) {
-  await loadScript(TIDE_BASE + "tide/scram/scramjet.all.js");
-  await loadScript(TIDE_BASE + "tide/baremux/index.js");
-  if (!window.$scramjetLoadController || !window.BareMux)
+  const reg = await navigator.serviceWorker.register(TIDE_BASE + "sw.js", { scope: TIDE_BASE, updateViaCache: "none" });
+  const sw = await workerActive(reg);
+  await loadScript(TIDE_BASE + "tide/scram/scramjet.js");
+  await loadScript(TIDE_BASE + "tide/controller/controller.api.js");
+  await loadScript(TIDE_BASE + "tide/libcurl/libcurl-client.js");
+  if (!window.$scramjet || !window.$scramjetController || !window.LibcurlTransport)
     throw new Error("The tide files did not load properly.");
-  const { ScramjetController } = $scramjetLoadController();
-  const ctl = new ScramjetController({
-    prefix: TIDE_BASE + "tide/go/",
-    files: {
-      wasm: TIDE_BASE + "tide/scram/scramjet.wasm.wasm",
-      all:  TIDE_BASE + "tide/scram/scramjet.all.js",
-      sync: TIDE_BASE + "tide/scram/scramjet.sync.js"
-    },
-    /* the same flags as CHALK OS, so the two never fight over the settings */
-    flags: {
-      serviceworkers: false, syncxhr: false, strictRewrites: true, rewriterLogs: false,
-      captureErrors: true, cleanErrors: false, scramitize: false, sourcemaps: true,
-      destructureRewrites: false, allowInvalidJs: true, allowFailedIntercepts: true,
-      interceptDownloads: true
+  const ctl = new $scramjetController.Controller({
+    serviceworker: sw,
+    transport: new LibcurlTransport.LibcurlClient({ wisp: tideWisp(key) }),
+    config: {
+      prefix: TIDE_BASE + "tide/go/",
+      scramjetPath: TIDE_BASE + "tide/scram/scramjet.js",
+      injectPath: TIDE_BASE + "tide/controller/controller.inject.js",
+      wasmPath: TIDE_BASE + "tide/scram/scramjet.wasm"
     }
   });
-  await initController(ctl);
-  /* Chalk TV has nowhere to put downloads, so they are dropped rather than saved */
-  ctl.addEventListener("download", e => { try { e.download.body.cancel(); } catch (x) {} });
-  const reg = await navigator.serviceWorker.register(TIDE_BASE + "sw.js", { scope: TIDE_BASE });
-  await workerActive(reg);
-  const conn = new BareMux.BareMuxConnection(TIDE_BASE + "tide/baremux/worker.js");
-  await conn.setTransport(TIDE_BASE + "tide/libcurl/index.mjs", [{ websocket: tideWisp(key) }]);
+  await ctl.wait();
   return ctl;
+}
+function tvFrame(ctl) {
+  const sf = ctl.createFrame();
+  const { Tap, BareResponse } = $scramjet;
+  /* Chalk TV has nowhere to put downloads, so they are dropped rather than saved */
+  Tap.tap(sf.hooks.fetch.preresponse, (ctx, props) => {
+    const r = props.response;
+    const dest = ctx.parsed.destination || ctx.request.rawDestination;
+    if (!/^\s*attachment/i.test(r.headers.get("content-disposition") || "") || (dest !== "document" && dest !== "iframe")) return;
+    try { r.body && r.body.cancel(); } catch (e) {}
+    props.response = BareResponse.fromNativeResponse(new Response(null, { status: 204 }));
+  });
+  /* where streams cannot be passed on, each answer goes over whole */
+  if (!canStream()) Tap.tap(sf.hooks.fetch.response, async (ctx, props) => {
+    const body = props.response.body;
+    if (body instanceof ReadableStream) props.response.body = await new Response(body).arrayBuffer();
+  });
+  return sf;
 }
 
 /* Firefox cannot pass a stream between pages, so video mostly will not play */
@@ -288,12 +283,12 @@ async function connect(key, fromSaved) {
   }
   saveKey(key);
   keyInput.value = "";
-  const sf = ctl.createFrame();
-  sf.frame.title = "Chalk TV";
-  sf.frame.allow = "fullscreen; autoplay; encrypted-media; picture-in-picture";
-  sf.frame.allowFullscreen = true;
-  stage.appendChild(sf.frame);
-  passKeysUp(sf.frame);
+  const sf = tvFrame(ctl);
+  sf.element.title = "Chalk TV";
+  sf.element.allow = "fullscreen; autoplay; encrypted-media; picture-in-picture";
+  sf.element.allowFullscreen = true;
+  stage.appendChild(sf.element);
+  passKeysUp(sf.element);
   sf.go(url);
   overlay.style.display = "none";
   if (!canStream()) toast("Video mostly won't play through the tide in Firefox. Chrome or Edge can do it.");

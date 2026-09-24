@@ -1,9 +1,30 @@
-var __require = /* @__PURE__ */ ((x) => typeof require !== "undefined" ? require : typeof Proxy !== "undefined" ? new Proxy(x, {
-  get: (a, b) => (typeof require !== "undefined" ? require : a)[b]
-}) : x)(function(x) {
-  if (typeof require !== "undefined") return require.apply(this, arguments);
-  throw Error('Dynamic require of "' + x + '" is not supported');
+(function(g,f){if(typeof exports=="object"&&typeof module<"u"){module.exports=f(require)}else if("function"==typeof define && define.amd){define("LibcurlTransport",["fs","path"],function(_d_0,_d_1){var d={"fs": _d_0,"path": _d_1},r=function(m){if(m in d) return d[m];if(typeof require=="function") return require(m);throw new Error("Cannot find module '"+m+"'")};return f(r)})}else {var gN={"fs":"fs","path":"path"},gReq=function(r){var mod = r in gN ? g[gN[r]] : g[r]; return mod };g["LibcurlTransport"]=f(gReq)}}(typeof globalThis < "u" ? globalThis : typeof self < "u" ? self : this,function(require){var exports={};var __exports=exports;var module={exports};
+"use strict";
+var __defProp = Object.defineProperty;
+var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
+};
+var __copyProps = (to, from, except, desc) => {
+  if (from && typeof from === "object" || typeof from === "function") {
+    for (let key of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key) && key !== except)
+        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+  }
+  return to;
+};
+var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
+
+// src/main.ts
+var main_exports = {};
+__export(main_exports, {
+  LibcurlClient: () => LibcurlClient,
+  default: () => LibcurlClient
 });
+module.exports = __toCommonJS(main_exports);
 
 // node_modules/.pnpm/libcurl.js@0.7.4/node_modules/libcurl.js/libcurl_full.mjs
 var libcurl = function() {
@@ -38,7 +59,7 @@ var libcurl = function() {
     err("exiting due to exception: " + toLog);
   }
   if (ENVIRONMENT_IS_SHELL) {
-    if (typeof process == "object" && typeof __require === "function" || typeof window == "object" || typeof importScripts == "function") throw new Error("not compiled for this environment (did you build to HTML and try to run it not on the web, or set ENVIRONMENT to something - like node - and run it someplace else - like on the web?)");
+    if (typeof process == "object" && typeof require === "function" || typeof window == "object" || typeof importScripts == "function") throw new Error("not compiled for this environment (did you build to HTML and try to run it not on the web, or set ENVIRONMENT to something - like node - and run it someplace else - like on the web?)");
     if (typeof read != "undefined") {
       read_ = function shell_read(f) {
         const data = tryParseAsDataURI(f);
@@ -209,8 +230,8 @@ var libcurl = function() {
     }
     typeSection[1] = typeSection.length - 2;
     var bytes = new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0].concat(typeSection, [2, 7, 1, 1, 101, 1, 102, 0, 0, 7, 5, 1, 1, 102, 0, 0]));
-    var module = new WebAssembly.Module(bytes);
-    var instance = new WebAssembly.Instance(module, { "e": { "f": func } });
+    var module2 = new WebAssembly.Module(bytes);
+    var instance = new WebAssembly.Instance(module2, { "e": { "f": func } });
     var wrappedFunc = instance.exports["f"];
     return wrappedFunc;
   }
@@ -734,7 +755,7 @@ var libcurl = function() {
   }
   function createWasm() {
     var info = { "env": asmLibraryArg, "wasi_snapshot_preview1": asmLibraryArg };
-    function receiveInstance(instance, module) {
+    function receiveInstance(instance, module2) {
       var exports2 = instance.exports;
       Module["asm"] = exports2;
       wasmMemory = Module["asm"]["memory"];
@@ -6371,10 +6392,10 @@ Several C libraries are used, and their licenses are listed below:
 
 // src/main.ts
 var LibcurlClient = class {
+  session;
   wisp;
   proxy;
   transport;
-  session;
   connections;
   constructor(options) {
     this.wisp = options.wisp ?? options.websocket;
@@ -6382,74 +6403,79 @@ var LibcurlClient = class {
     this.proxy = options.proxy;
     this.connections = options.connections;
     if (!this.wisp.endsWith("/")) {
-      throw new TypeError("The Websocket URL must end with a trailing forward slash.");
+      throw new TypeError(
+        "The Websocket URL must end with a trailing forward slash."
+      );
     }
     if (!this.wisp.startsWith("ws://") && !this.wisp.startsWith("wss://")) {
-      throw new TypeError("The Websocket URL must use the ws:// or wss:// protocols.");
+      throw new TypeError(
+        "The Websocket URL must use the ws:// or wss:// protocols."
+      );
     }
-    if (typeof options.proxy === "string" || options.proxy instanceof String) {
+    if (typeof options.proxy === "string") {
       let protocol = new URL(options.proxy).protocol;
       if (!["socks5h:", "socks4a:", "http:"].includes(protocol)) {
-        throw new TypeError("Only socks5h, socks4a, and http proxies are supported.");
+        throw new TypeError(
+          "Only socks5h, socks4a, and http proxies are supported."
+        );
       }
     }
   }
   async init() {
-    if (this.transport)
-      libcurl.transport = this.transport;
+    if (this.transport) libcurl.transport = this.transport;
+    if (!libcurl.ready) {
+      await new Promise((resolve, reject) => {
+        libcurl.onload = () => {
+          console.log("loaded libcurl.js v" + libcurl.version.lib);
+          this.ready = true;
+          resolve(null);
+        };
+      });
+    }
     libcurl.set_websocket(this.wisp);
     this.session = new libcurl.HTTPSession({
       proxy: this.proxy
     });
-    if (this.connections)
-      this.session.set_connections(...this.connections);
+    if (this.connections) this.session.set_connections(...this.connections);
     this.ready = libcurl.ready;
     if (this.ready) {
       console.log("running libcurl.js v" + libcurl.version.lib);
       return;
     }
-    ;
-    await new Promise((resolve, reject) => {
-      libcurl.onload = () => {
-        console.log("loaded libcurl.js v" + libcurl.version.lib);
-        this.ready = true;
-        resolve(null);
-      };
-    });
   }
   ready = false;
   async meta() {
   }
   async request(remote, method, body, headers, signal) {
+    let headersObj = {};
+    for (let [key, value] of headers) {
+      headersObj[key] = value;
+    }
     let payload = await this.session.fetch(remote.href, {
       method,
-      headers,
+      headers: headersObj,
       body,
       redirect: "manual",
       signal
     });
-    let respheaders = {};
-    for (let [key, value] of payload.raw_headers) {
-      if (!respheaders[key]) {
-        respheaders[key] = [value];
-      } else {
-        respheaders[key].push(value);
-      }
-    }
     return {
       body: payload.body,
-      headers: respheaders,
+      headers: payload.raw_headers,
       status: payload.status,
       statusText: payload.statusText
     };
   }
   connect(url, protocols, requestHeaders, onopen, onmessage, onclose, onerror) {
+    let headersObj = {};
+    for (let [key, value] of requestHeaders) {
+      headersObj[key] = value;
+    }
     let socket = new libcurl.WebSocket(url.toString(), protocols, {
-      headers: requestHeaders
+      headers: headersObj
     });
     socket.binaryType = "arraybuffer";
     socket.onopen = (event) => {
-      onopen("");
+      onopen("", "");
     };
     socket.onclose = (event) => {
       onclose(event.code, event.reason);
@@ -6470,6 +6496,5 @@ var LibcurlClient = class {
     ];
   }
 };
-export {
-  LibcurlClient as default
-};
+
+if(__exports != exports)module.exports = exports;return module.exports}));

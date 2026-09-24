@@ -255,13 +255,14 @@ land in `~/Downloads` inside CHALK OS, never on the real computer.
 It needs two things next to `index.html` on whatever hosts CHALK OS:
 
 * `sw.js` - the service worker
-* `tide/` - Scramjet 1.1.0, bare-mux 2.1.9 and libcurl-transport 1.5.2 (about
-  2.8 MB, vendored from npm; the same versions Mercury's own scramjet-app pins)
+* `tide/` - Scramjet 2.0.67-alpha.2 (`scram/`), scramjet-controller 0.0.14
+  (`controller/`) and libcurl-transport 2.0.5 (`libcurl/`), about 2.9 MB,
+  vendored from npm
 
-Those versions matter. libcurl-transport 2.x iterates the request headers,
-while bare-mux 2.1.9 hands a transport a plain object, so every request fails
-with "headers is not iterable". 1.5.2 passes the headers through untouched and
-is the version Scramjet 1.1.0 is tested against.
+Those versions matter. The controller refuses to start unless Scramjet is
+exactly the version it was built against, and Scramjet 2 takes a transport
+directly, so bare-mux is gone. Scramjet 2 is still an alpha: if it misbehaves,
+reverting the change that brought it in puts Scramjet 1.1.0 back.
 
 Both have to be on an `https://` address; a page opened from a file on disk
 cannot install a service worker.
