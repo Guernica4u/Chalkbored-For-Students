@@ -33,7 +33,7 @@
   #prompt-box button:hover { background: #5cd698; }
   #prompt-box button:disabled { opacity: 0.6; cursor: default; }
   #status { margin-top: 15px; font-size: 13px; color: #c9534b; min-height: 18px; max-width: 300px; }
-  #hint { margin-top: 10px; font-size: 12px; color: #8a8a88; max-width: 300px; }
+  #hint, #no-key { margin-top: 10px; font-size: 12px; color: #8a8a88; max-width: 300px; }
   #toast {
     position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%);
     max-width: calc(100% - 32px); padding: 10px 14px; border-radius: 6px;
@@ -52,6 +52,7 @@
     <button id="submit-btn" type="button">Go</button>
     <div id="status"></div>
     <div id="hint"></div>
+    <div id="no-key">No key? The owner needs to give you one, or you need to self-host your own tide.</div>
   </div>
 </div>
 <div id="toast"></div>
@@ -237,6 +238,29 @@ function toast(text) {
   setTimeout(() => toastEl.classList.remove("show"), 8000);
 }
 
+/* ---- the panic key ----
+   Notebook arms the panic key on this page when it opens Chalk TV in a new
+   tab, but key presses on the site itself land in the tide frame and never
+   get here. Hand each one up as a copy, so whatever key is set in Notebook
+   still works. Typing into a box on the site is left alone. */
+function passKeysUp(frame) {
+  const attach = () => {
+    let win;
+    try { win = frame.contentWindow; if (!win || win.__chalkKeys) return; win.__chalkKeys = true; }
+    catch (e) { return; }
+    win.addEventListener("keydown", e => {
+      const el = e.target;
+      if (el && el.closest && el.closest("input, textarea, select, [contenteditable=''], [contenteditable='true']")) return;
+      document.dispatchEvent(new KeyboardEvent("keydown", {
+        key: e.key, code: e.code, ctrlKey: e.ctrlKey, altKey: e.altKey,
+        shiftKey: e.shiftKey, metaKey: e.metaKey, bubbles: true, cancelable: true
+      }));
+    }, true);
+  };
+  frame.addEventListener("load", attach);
+  attach();
+}
+
 /* ---- going ---- */
 let busy = false;
 async function connect(key, fromSaved) {
@@ -269,6 +293,7 @@ async function connect(key, fromSaved) {
   sf.frame.allow = "fullscreen; autoplay; encrypted-media; picture-in-picture";
   sf.frame.allowFullscreen = true;
   stage.appendChild(sf.frame);
+  passKeysUp(sf.frame);
   sf.go(url);
   overlay.style.display = "none";
   if (!canStream()) toast("Video mostly won't play through the tide in Firefox. Chrome or Edge can do it.");
