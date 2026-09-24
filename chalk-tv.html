@@ -202,6 +202,54 @@
   }
   #toast.show { opacity: 1; }
 
+  /* Notebook's "Plain look": no handwriting, no ruled paper, no animations */
+  body.plain { --hand: var(--body); }
+  body.plain #homepage, body.plain #settings { background: var(--paper); }
+  body.plain * { transition: none !important; }
+  body.plain .card:hover { transform: none; }
+
+  /* ---- settings ---- */
+  #settings { position: absolute; inset: 0; z-index: 5; overflow-y: auto; padding: 32px 16px 40px; background: var(--paper); }
+  #settings[hidden] { display: none; }
+  .set-inner { max-width: 680px; margin: 0 auto; }
+  .set-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+  .set-head h1 { margin: 0; font: 700 2rem/1.1 var(--hand); }
+  .group {
+    margin-bottom: 16px; padding: 4px 16px; background: var(--card);
+    border: 1px solid var(--edge); border-radius: var(--radius); box-shadow: var(--shadow);
+  }
+  .group h2 { margin: 12px 0 2px; font: 700 1.15rem/1.2 var(--hand); }
+  .setting { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; padding: 12px 0; border-top: 1px solid var(--edge); }
+  .group h2 + .setting { border-top: none; }
+  .setting > div:first-child { flex: 1 1 220px; min-width: 0; }
+  .setting h3 { margin: 0; font-size: 0.95rem; }
+  .setting p { margin: 2px 0 0; color: var(--pencil); font-size: 0.83rem; }
+  .choice { display: flex; flex-wrap: wrap; gap: 4px; }
+  .choice button {
+    padding: 6px 12px; background: var(--paper-2); border: 1px solid var(--edge); border-radius: 999px; font-size: 0.85rem;
+  }
+  body[data-theme="terminal"] .choice button, body[data-theme="terminal"] .small-btn, body[data-theme="terminal"] .field { border-radius: 0; }
+  .choice button.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 700; }
+  .switch {
+    position: relative; flex: none; width: 44px; height: 26px; padding: 0; border: none; border-radius: 999px; background: var(--edge);
+  }
+  .switch::after {
+    content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%;
+    background: var(--card); box-shadow: 0 1px 2px rgba(0,0,0,0.25); transition: transform 0.15s;
+  }
+  .switch[aria-checked="true"] { background: var(--accent); }
+  .switch[aria-checked="true"]::after { transform: translateX(18px); }
+  .field {
+    width: 100%; height: 36px; margin-top: 8px; padding: 0 12px;
+    background: var(--paper-2); border: 1px solid var(--edge); border-radius: 999px; font-size: 0.9rem;
+  }
+  .field:focus { outline: none; border-color: var(--accent); }
+  .small-btn {
+    flex: none; height: 32px; padding: 0 14px; background: var(--paper-2); color: var(--ink);
+    border: 1px solid var(--edge); border-radius: 999px; font-size: 0.85rem;
+  }
+  .small-btn:hover { border-color: var(--accent); }
+
   @media (max-width: 560px) {
     #brand, #fwd { display: none; }
     #homepage { padding-top: 28px; }
@@ -224,6 +272,7 @@
     <button class="tool" id="home" type="button" title="Homepage" aria-label="Homepage">&#8962;</button>
     <form id="bar"><input id="url" type="text" placeholder="Search lessons or type an address" autocomplete="off" spellcheck="false" aria-label="Address"></form>
     <button class="tool" id="full" type="button" title="Full screen" aria-label="Full screen">&#9974;</button>
+    <button class="tool" id="gear" type="button" title="Settings" aria-label="Settings">&#9881;</button>
   </div>
   <main id="stage">
     <section id="homepage">
@@ -234,14 +283,79 @@
           <input id="home-q" type="text" placeholder="Search lessons or type an address" autocomplete="off" spellcheck="false" aria-label="Search">
           <button class="btn" type="submit">Search</button>
         </form>
-        <h2>Learning shelf</h2>
-        <div class="shelf" id="shelf"></div>
+        <div id="shelf-wrap">
+          <h2>Learning shelf</h2>
+          <div class="shelf" id="shelf"></div>
+        </div>
         <h2>Notes</h2>
         <ul class="notes">
-          <li>Links that open a new tab open as a Chalk TV tab instead.</li>
+          <li>Links that open a new tab open as a Chalk TV tab instead. Settings (&#9881;) can change that.</li>
           <li>Hold Ctrl (or middle-click) on a link or a card to open it in the background.</li>
           <li>Your panic key from Notebook works here too.</li>
         </ul>
+      </div>
+    </section>
+    <section id="settings" hidden>
+      <div class="set-inner">
+        <div class="set-head">
+          <h1>Settings</h1>
+          <button class="small-btn" id="set-close" type="button">Done</button>
+        </div>
+        <p class="lead">Saved in this browser only.</p>
+
+        <div class="group">
+          <h2>Look</h2>
+          <div class="setting">
+            <div><h3>Theme</h3><p id="set-theme-note"></p></div>
+          </div>
+        </div>
+
+        <div class="group">
+          <h2>Starting up</h2>
+          <div class="setting">
+            <div><h3>Start page</h3><p>What the first tab opens when Chalk TV starts.</p></div>
+            <div class="choice" id="set-start">
+              <button type="button" data-v="home">Homepage</button>
+              <button type="button" data-v="site">A site</button>
+            </div>
+            <input class="field" id="set-start-url" type="text" placeholder="youtube.com" autocomplete="off" spellcheck="false" aria-label="Start site" hidden>
+          </div>
+          <div class="setting">
+            <div><h3>Learning shelf</h3><p>The cards on the homepage.</p></div>
+            <button class="switch" id="set-shelf" type="button" role="switch" aria-checked="true" aria-label="Show the learning shelf"></button>
+          </div>
+        </div>
+
+        <div class="group">
+          <h2>Browsing</h2>
+          <div class="setting">
+            <div><h3>Search with</h3><p>Used when you type words instead of an address.</p></div>
+            <div class="choice" id="set-search"></div>
+          </div>
+          <div class="setting">
+            <div><h3>Links that open a new tab</h3><p>Real browser tabs never open either way.</p></div>
+            <div class="choice" id="set-links">
+              <button type="button" data-v="tab">New Chalk TV tab</button>
+              <button type="button" data-v="same">Same tab</button>
+            </div>
+          </div>
+          <div class="setting">
+            <div><h3>Block pop-ups</h3><p>Stops sites opening tabs when you didn't click anything.</p></div>
+            <button class="switch" id="set-popups" type="button" role="switch" aria-checked="true" aria-label="Block pop-ups"></button>
+          </div>
+        </div>
+
+        <div class="group">
+          <h2>Tide key</h2>
+          <div class="setting">
+            <div><h3>Remember tide key</h3><p>Chalk TV keeps the key in this browser and connects on its own. The same switch as in Notebook's settings. Turning it off forgets the key.</p></div>
+            <button class="switch" id="set-remember" type="button" role="switch" aria-checked="false" aria-label="Remember tide key"></button>
+          </div>
+          <div class="setting">
+            <div><h3 id="set-key-state"></h3><p>Forgetting it means entering it again next time.</p></div>
+            <button class="small-btn" id="set-forget" type="button">Forget tide key</button>
+          </div>
+        </div>
       </div>
     </section>
   </main>
@@ -261,12 +375,12 @@
 <script>
 // ============================================================
 // CONFIGURATION
-// TARGET_URL: the page the first tab opens. Leave it "" to start
-// on the homepage instead.
+// TARGET_URL: a page for the first tab to open. "" (the default)
+// starts on the homepage. Settings > Start page overrides this.
 // SHELF: the cards on the homepage - a name, an address, a note
 // and a colour for each.
 // ============================================================
-const TARGET_URL = "youtube.com";
+const TARGET_URL = "";
 const SHELF = [
   ["YouTube",              "youtube.com",               "Videos on everything",        "#c4302b"],
   ["Khan Academy",         "khanacademy.org",           "Math, science and more",      "#14bf96"],
@@ -314,14 +428,49 @@ function notebookSettings() {
   try { return JSON.parse(localStorage.getItem(SETTINGS_STORE) || "null") || {}; }
   catch (e) { return {}; }
 }
-{
-  const theme = notebookSettings().theme;
-  if (theme === "chalkboard" || theme === "terminal") document.body.dataset.theme = theme;
+const THEME_NAMES = { notebook: "Notebook", chalkboard: "Chalkboard", terminal: "Terminal" };
+function applyLook() {
+  const nb = notebookSettings();
+  const theme = THEME_NAMES[nb.theme] ? nb.theme : "notebook";
+  document.body.dataset.theme = theme;
+  document.body.classList.toggle("plain", !!nb.plain);
+  const note = document.getElementById("set-theme-note");
+  if (note) note.textContent = "Follows Notebook: " + THEME_NAMES[theme] + (nb.plain ? ", plain look" : "") +
+    ". Change it in Notebook's settings, under Look, and Chalk TV changes with it.";
+}
+applyLook();
+/* Notebook saving a change - in another tab or the one around this page -
+   shows up here straight away */
+window.addEventListener("storage", e => {
+  if (e.key === SETTINGS_STORE || e.key === null) { applyLook(); if (typeof paintSettings === "function") paintSettings(); }
+});
+
+/* ---- Chalk TV's own settings ---- */
+const TV_STORE = "chalk-tv.settings";
+const SEARCH_ENGINES = {
+  duckduckgo: ["DuckDuckGo", "https://duckduckgo.com/?q="],
+  google:     ["Google",     "https://www.google.com/search?q="],
+  bing:       ["Bing",       "https://www.bing.com/search?q="],
+  brave:      ["Brave",      "https://search.brave.com/search?q="],
+  startpage:  ["Startpage",  "https://www.startpage.com/do/search?q="]
+};
+const TV_DEFAULTS = { start: "home", startUrl: "", search: "duckduckgo", links: "tab", popups: true, shelf: true };
+let tv = Object.assign({}, TV_DEFAULTS);
+try { tv = Object.assign(tv, JSON.parse(localStorage.getItem(TV_STORE) || "null") || {}); } catch (e) {}
+if (!SEARCH_ENGINES[tv.search]) tv.search = "duckduckgo";
+function saveTv() {
+  try { localStorage.setItem(TV_STORE, JSON.stringify(tv)); } catch (e) {}
 }
 
 /* ---- the key ---- */
 function rememberOn() {
   return !!notebookSettings().rememberTide;
+}
+/* the same switch Notebook shows, so it is stored with Notebook's settings */
+function setRemember(on) {
+  const nb = notebookSettings();
+  nb.rememberTide = !!on;
+  try { localStorage.setItem(SETTINGS_STORE, JSON.stringify(nb)); } catch (e) {}
 }
 function savedKey() {
   try { return localStorage.getItem(TIDE_KEY_STORE) || ""; } catch (e) { return ""; }
@@ -346,7 +495,15 @@ function siteUrl(raw) {
     return /^https?:$/.test(u.protocol) ? u.href : null;
   } catch (e) { return null; }
 }
-function targetUrl() { return siteUrl(TARGET_URL); }
+function targetUrl() {
+  if (tv.start === "site") return siteUrl(tv.startUrl);
+  if (tv.start === "home" && localStorageHasTv()) return null;
+  return siteUrl(TARGET_URL);
+}
+/* Settings, once saved, win over TARGET_URL in this file */
+function localStorageHasTv() {
+  try { return !!localStorage.getItem(TV_STORE); } catch (e) { return false; }
+}
 /* An address as typed: a full link, a bare site name, or else a search */
 function typedUrl(text) {
   const t = String(text || "").trim();
@@ -355,7 +512,7 @@ function typedUrl(text) {
   if (!/\s/.test(t) && /^[^\/]+\.[a-z]{2,}(:\d+)?(\/.*)?$/i.test(t)) {
     try { return new URL("https://" + t).href; } catch (e) {}
   }
-  return "https://duckduckgo.com/?q=" + encodeURIComponent(t);
+  return SEARCH_ENGINES[tv.search][1] + encodeURIComponent(t);
 }
 
 /* ---- the connection: always encrypted, never plain ws:// ---- */
@@ -498,7 +655,9 @@ function keepInFrame(sf) {
     win.open = function (url) {
       const real = url === undefined || url === null || String(url) === "" ? null : realUrl(url);
       const clicked = !win.navigator.userActivation || win.navigator.userActivation.isActive;
-      if (real && clicked) openFromPage(real, false);
+      if (!real || (tv.popups && !clicked)) return null;
+      if (tv.links === "same") sf.go(real);
+      else openFromPage(real, false);
       return null;
     };
     const onClick = e => {
@@ -511,7 +670,8 @@ function keepInFrame(sf) {
       if (!real) return;
       e.preventDefault();
       e.stopImmediatePropagation();
-      openFromPage(real, background);
+      if (tv.links === "same" && !background) sf.go(real);
+      else openFromPage(real, background);
     };
     doc.addEventListener("click", onClick, true);
     doc.addEventListener("auxclick", onClick, true);
@@ -599,6 +759,7 @@ function openTab(url, background) {
   return tab;
 }
 function activate(tab) {
+  closeSettings();
   active = tab;
   render();
   tab.el.scrollIntoView({ block: "nearest", inline: "nearest" });
@@ -619,6 +780,7 @@ function closeTab(tab) {
 }
 function navigate(tab, url) {
   if (!url) return;
+  if (tab === active) closeSettings();
   if (!tab.sf) {
     tab.sf = tvFrame(ctl);
     stage.appendChild(tab.sf.element);
@@ -630,6 +792,7 @@ function navigate(tab, url) {
   render();
 }
 function goHome(tab) {
+  if (tab === active) closeSettings();
   tab.onHome = true;
   render();
   if (tab === active) document.getElementById("home-q").focus();
@@ -665,6 +828,63 @@ function watchTabs() {
     if (url !== tab.url || title !== tab.title) { tab.url = url; tab.title = title; changed = true; }
   }
   if (changed) render();
+}
+
+/* ---- the settings page ---- */
+const settingsEl = document.getElementById("settings");
+function paintSettings() {
+  applyLook();
+  const pick = (id, v) => document.querySelectorAll("#" + id + " button").forEach(b => b.classList.toggle("on", b.dataset.v === v));
+  pick("set-start", tv.start);
+  pick("set-search", tv.search);
+  pick("set-links", tv.links);
+  const startUrl = document.getElementById("set-start-url");
+  startUrl.hidden = tv.start !== "site";
+  if (document.activeElement !== startUrl) startUrl.value = tv.startUrl || "";
+  document.getElementById("set-shelf").setAttribute("aria-checked", String(tv.shelf));
+  document.getElementById("set-popups").setAttribute("aria-checked", String(tv.popups));
+  document.getElementById("set-remember").setAttribute("aria-checked", String(rememberOn()));
+  const saved = !!savedKey();
+  document.getElementById("set-key-state").textContent = saved ? "A key is saved in this browser" : "No key saved";
+  document.getElementById("set-forget").hidden = !saved;
+  document.getElementById("shelf-wrap").hidden = !tv.shelf;
+}
+function changeTv(key, value) {
+  tv[key] = value;
+  saveTv();
+  paintSettings();
+}
+function openSettings() { paintSettings(); settingsEl.hidden = false; document.getElementById("set-close").focus(); }
+function closeSettings() { settingsEl.hidden = true; }
+function setupSettings() {
+  const search = document.getElementById("set-search");
+  for (const [k, [name]] of Object.entries(SEARCH_ENGINES)) {
+    const b = document.createElement("button");
+    b.type = "button"; b.dataset.v = k; b.textContent = name;
+    search.appendChild(b);
+  }
+  search.onclick = e => { const b = e.target.closest("button"); if (b) changeTv("search", b.dataset.v); };
+  document.getElementById("set-links").onclick = e => { const b = e.target.closest("button"); if (b) changeTv("links", b.dataset.v); };
+  document.getElementById("set-start").onclick = e => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    changeTv("start", b.dataset.v);
+    if (b.dataset.v === "site") document.getElementById("set-start-url").focus();
+  };
+  document.getElementById("set-start-url").oninput = e => { tv.startUrl = e.target.value.trim(); saveTv(); };
+  document.getElementById("set-shelf").onclick = () => changeTv("shelf", !tv.shelf);
+  document.getElementById("set-popups").onclick = () => changeTv("popups", !tv.popups);
+  document.getElementById("set-remember").onclick = () => {
+    const on = !rememberOn();
+    setRemember(on);
+    if (!on) forgetKey();
+    paintSettings();
+  };
+  document.getElementById("set-forget").onclick = () => { forgetKey(); paintSettings(); };
+  document.getElementById("set-close").onclick = closeSettings;
+  document.getElementById("gear").onclick = () => settingsEl.hidden ? openSettings() : closeSettings();
+  settingsEl.addEventListener("keydown", e => { if (e.key === "Escape") closeSettings(); });
+  paintSettings();
 }
 
 /* ---- the toolbar and the homepage ---- */
@@ -746,6 +966,7 @@ async function connect(key, fromSaved) {
   saveKey(key);
   keyInput.value = "";
   setupChrome();
+  setupSettings();
   openTab(targetUrl(), false);
   overlay.style.display = "none";
   if (!canStream()) toast("Video mostly won't play through the tide in Firefox. Chrome or Edge can do it.");
