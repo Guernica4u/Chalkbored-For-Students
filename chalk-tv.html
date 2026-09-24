@@ -41,10 +41,50 @@
     z-index: 1001; opacity: 0; transition: opacity 0.4s; pointer-events: none;
   }
   #toast.show { opacity: 1; }
+  /* the address bar: tucked away as a small tab so video stays full screen */
+  #bar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 900;
+    display: flex; gap: 6px; align-items: center; padding: 8px;
+    background: #1a1a1a; border-bottom: 1px solid #333;
+    font: 14px system-ui, sans-serif; color: #e8e8e6;
+    transform: translateY(-100%); transition: transform 0.2s;
+  }
+  #bar.open { transform: none; }
+  #bar button {
+    flex: none; min-width: 34px; height: 34px; padding: 0 10px;
+    background: #2a2a2a; color: #e8e8e6; border: 1px solid #444; border-radius: 4px;
+    font-size: 15px; cursor: pointer;
+  }
+  #bar button:hover { border-color: #6ee7a8; }
+  #bar #go { background: #6ee7a8; color: #000; border-color: #6ee7a8; }
+  #url {
+    flex: 1; min-width: 0; height: 34px; padding: 0 10px;
+    background: #2a2a2a; color: #e8e8e6; border: 1px solid #444; border-radius: 4px; font-size: 14px;
+  }
+  #url:focus { outline: none; border-color: #6ee7a8; }
+  #handle {
+    position: fixed; top: 0; left: 50%; transform: translateX(-50%); z-index: 899;
+    width: 64px; height: 16px; padding: 0; border: none; border-radius: 0 0 8px 8px;
+    background: rgba(26,26,26,0.85); color: #8a8a88; font-size: 10px; line-height: 16px; cursor: pointer;
+  }
+  #edge { position: fixed; top: 0; left: 0; right: 0; height: 6px; z-index: 898; }
+  #bar[hidden], #handle[hidden], #edge[hidden] { display: none; }
+  @media (max-width: 480px) { #bar #back, #bar #fwd { display: none; } }
 </style>
 </head>
 <body>
 <div id="stage"></div>
+<div id="edge" hidden></div>
+<button id="handle" type="button" title="Address bar" aria-label="Show address bar" hidden>&#9660;</button>
+<form id="bar" hidden>
+  <button id="back" type="button" title="Back" aria-label="Back">&#8249;</button>
+  <button id="fwd" type="button" title="Forward" aria-label="Forward">&#8250;</button>
+  <button id="reload" type="button" title="Reload" aria-label="Reload">&#8635;</button>
+  <button id="home" type="button" title="Back to the start page" aria-label="Home">&#8962;</button>
+  <input id="url" type="text" placeholder="Type an address or search" autocomplete="off" spellcheck="false" aria-label="Address">
+  <button id="go" type="submit">Go</button>
+  <button id="hide" type="button" title="Hide" aria-label="Hide address bar">&#9650;</button>
+</form>
 <div id="overlay">
   <div id="prompt-box">
     <h2>Enter tide key</h2>
@@ -58,7 +98,8 @@
 <div id="toast"></div>
 <script>
 // ============================================================
-// CONFIGURATION: Set your target URL here
+// CONFIGURATION: Set the page Chalk TV starts on here
+// (the address bar at the top can go anywhere after that)
 // ============================================================
 const TARGET_URL = "youtube.com";
 
@@ -256,6 +297,63 @@ function passKeysUp(frame) {
   attach();
 }
 
+/* ---- the address bar ---- */
+const bar = document.getElementById("bar");
+const urlInput = document.getElementById("url");
+const handle = document.getElementById("handle");
+const edge = document.getElementById("edge");
+
+/* An address as typed: a full link, a bare site name, or else a search */
+function typedUrl(text) {
+  const t = String(text || "").trim();
+  if (!t) return null;
+  if (/^https?:\/\//i.test(t)) { try { return new URL(t).href; } catch (e) { return null; } }
+  if (!/\s/.test(t) && /^[^\/]+\.[a-z]{2,}(:\d+)?(\/.*)?$/i.test(t)) {
+    try { return new URL("https://" + t).href; } catch (e) {}
+  }
+  return "https://duckduckgo.com/?q=" + encodeURIComponent(t);
+}
+function openBar() { bar.classList.add("open"); handle.hidden = true; }
+function closeBar() {
+  if (bar.contains(document.activeElement)) document.activeElement.blur();
+  bar.classList.remove("open"); handle.hidden = false;
+}
+function setupBar(sf) {
+  bar.hidden = false; edge.hidden = false; handle.hidden = false;
+  handle.onclick = () => { openBar(); urlInput.focus(); urlInput.select(); };
+  edge.onmouseenter = openBar;
+  bar.onmouseleave = () => { if (!bar.contains(document.activeElement)) closeBar(); };
+  document.getElementById("hide").onclick = closeBar;
+  document.getElementById("back").onclick = () => sf.back();
+  document.getElementById("fwd").onclick = () => sf.forward();
+  document.getElementById("reload").onclick = () => sf.reload();
+  document.getElementById("home").onclick = () => { sf.go(targetUrl()); closeBar(); };
+  bar.onsubmit = e => {
+    e.preventDefault();
+    const url = typedUrl(urlInput.value);
+    if (!url) return;
+    sf.go(url);
+    closeBar();
+  };
+  urlInput.onkeydown = e => { if (e.key === "Escape") closeBar(); };
+
+  /* keep the box showing the real address of whatever is open, including
+     links clicked and pages that change their own address */
+  let last = "";
+  const check = () => {
+    let href;
+    try { href = sf.element.contentWindow.location.href; } catch (e) { return; }
+    if (!href || !href.startsWith(sf.context.prefix.href)) return;
+    let url;
+    try { url = $scramjet.unrewriteUrl(href, sf.context); } catch (e) { return; }
+    if (!url || url === last) return;
+    last = url;
+    if (document.activeElement !== urlInput) urlInput.value = url;
+  };
+  sf.element.addEventListener("load", check);
+  setInterval(check, 1000);
+}
+
 /* ---- going ---- */
 let busy = false;
 async function connect(key, fromSaved) {
@@ -289,6 +387,8 @@ async function connect(key, fromSaved) {
   sf.element.allowFullscreen = true;
   stage.appendChild(sf.element);
   passKeysUp(sf.element);
+  setupBar(sf);
+  urlInput.value = url;
   sf.go(url);
   overlay.style.display = "none";
   if (!canStream()) toast("Video mostly won't play through the tide in Firefox. Chrome or Edge can do it.");
