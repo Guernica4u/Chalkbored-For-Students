@@ -5,91 +5,253 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="referrer" content="no-referrer">
 <title>Chalk TV</title>
+<link rel="icon" href="favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;500;700&family=Kalam:wght@400;700&display=swap" rel="stylesheet">
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { height: 100%; overflow: hidden; background: #0c0d10; }
-  #stage { position: fixed; inset: 0; background: #000; }
-  #stage iframe { width: 100%; height: 100%; border: none; background: #000; display: block; }
+  /* the same three looks as Notebook, picked from Notebook's settings */
+  :root {
+    --paper: #fbfbf7;
+    --paper-2: #f3f3ec;
+    --card: #ffffff;
+    --ink: #1f2d44;
+    --pencil: #66708a;
+    --rule-line: #dde6f2;
+    --margin-line: #ecb3ad;
+    --edge: #d9dde4;
+    --accent: #2c5fb8;
+    --accent-ink: #ffffff;
+    --highlight: #ffe680;
+    --danger: #c0473a;
+    --shadow: 0 1px 2px rgba(31, 45, 68, 0.08), 0 4px 14px rgba(31, 45, 68, 0.06);
+    --rule: 28px;
+    --radius: 10px;
+    --hand: 'Kalam', 'Segoe Print', 'Comic Sans MS', cursive;
+    --body: 'Atkinson Hyperlegible', 'Segoe UI', system-ui, sans-serif;
+    color-scheme: light;
+  }
+  body[data-theme="chalkboard"] {
+    --paper: #1e2a25;
+    --paper-2: #24322c;
+    --card: #26352f;
+    --ink: #eef0ea;
+    --pencil: #9fb0a7;
+    --rule-line: rgba(238, 240, 234, 0.035);
+    --margin-line: transparent;
+    --edge: #34453d;
+    --accent: #f2d479;
+    --accent-ink: #1e2a25;
+    --highlight: #f2d479;
+    --danger: #f08c7e;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.25), 0 6px 18px rgba(0, 0, 0, 0.18);
+    color-scheme: dark;
+  }
+  body[data-theme="terminal"] {
+    --paper: #0c0d10;
+    --paper-2: #171b20;
+    --card: #101216;
+    --ink: #e8e8e6;
+    --pencil: #6f7680;
+    --rule-line: transparent;
+    --margin-line: transparent;
+    --edge: #23262c;
+    --accent: #6ee7a8;
+    --accent-ink: #0c0d10;
+    --highlight: #6ee7a8;
+    --danger: #e8776d;
+    --shadow: none;
+    --radius: 0;
+    --hand: 'JetBrains Mono', ui-monospace, Consolas, monospace;
+    --body: 'JetBrains Mono', ui-monospace, Consolas, monospace;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; overflow: hidden; }
+  body {
+    background: var(--paper); color: var(--ink);
+    font: 15px/1.5 var(--body); -webkit-font-smoothing: antialiased;
+  }
+  button, input { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  #app { display: flex; flex-direction: column; height: 100%; }
+
+  /* ---- tabs ---- */
+  #tabstrip {
+    display: flex; align-items: flex-end; gap: 4px; padding: 8px 8px 0;
+    background: var(--paper-2); border-bottom: 1px solid var(--edge);
+  }
+  #brand {
+    flex: none; align-self: center; margin: 0 8px 6px 4px;
+    font: 700 1.25rem/1 var(--hand); color: var(--ink); white-space: nowrap;
+  }
+  #brand span { color: var(--accent); }
+  #tabs { display: flex; gap: 4px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+  #tabs::-webkit-scrollbar { display: none; }
+  .tab {
+    flex: 0 1 200px; min-width: 110px; display: flex; align-items: center; gap: 6px;
+    height: 34px; padding: 0 6px 0 12px; margin-bottom: -1px;
+    background: transparent; border: 1px solid transparent; border-bottom: none;
+    border-radius: var(--radius) var(--radius) 0 0; color: var(--pencil); font-size: 0.88rem;
+  }
+  .tab:hover { background: var(--card); color: var(--ink); }
+  .tab.active { background: var(--paper); border-color: var(--edge); color: var(--ink); }
+  .tab .t-title { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; text-align: left; }
+  .tab .t-close {
+    flex: none; width: 22px; height: 22px; padding: 0; border: none; border-radius: 50%;
+    background: transparent; color: var(--pencil); font-size: 15px; line-height: 22px;
+  }
+  .tab .t-close:hover { background: var(--edge); color: var(--ink); }
+  #newtab {
+    flex: none; align-self: center; width: 30px; height: 30px; margin: 0 0 4px 2px; padding: 0;
+    border: none; border-radius: 50%; background: transparent; color: var(--pencil); font-size: 20px; line-height: 1;
+  }
+  #newtab:hover { background: var(--card); color: var(--ink); }
+
+  /* ---- toolbar ---- */
+  #toolbar {
+    display: flex; align-items: center; gap: 4px; padding: 6px 8px;
+    background: var(--paper); border-bottom: 1px solid var(--edge);
+  }
+  .tool {
+    flex: none; width: 34px; height: 34px; padding: 0; border: none; border-radius: var(--radius);
+    background: transparent; color: var(--pencil); font-size: 17px; line-height: 1;
+  }
+  .tool:hover { background: var(--paper-2); color: var(--ink); }
+  #bar { flex: 1; min-width: 0; display: flex; }
+  #url {
+    flex: 1; min-width: 0; height: 34px; padding: 0 14px;
+    background: var(--paper-2); border: 1px solid var(--edge); border-radius: 999px; font-size: 0.92rem;
+  }
+  body[data-theme="terminal"] #url { border-radius: 0; }
+  #url:focus { outline: none; border-color: var(--accent); background: var(--card); }
+
+  /* ---- what the tab shows ---- */
+  #stage { position: relative; flex: 1; min-height: 0; background: var(--paper); }
+  #stage iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: none; background: #fff; }
+  #stage iframe.away, #homepage.away { display: none; }
+
+  /* the homepage: a page of the notebook */
+  #homepage {
+    position: absolute; inset: 0; overflow-y: auto; padding: 48px 16px 40px;
+    background:
+      linear-gradient(to right, transparent 63px, var(--margin-line) 63px, var(--margin-line) 65px, transparent 65px),
+      repeating-linear-gradient(to bottom, transparent 0, transparent calc(var(--rule) - 1px), var(--rule-line) calc(var(--rule) - 1px), var(--rule-line) var(--rule));
+  }
+  .home-inner { max-width: 760px; margin: 0 auto; }
+  .home-inner h1 { margin: 0; font: 700 2.6rem/1.1 var(--hand); }
+  .home-inner h1 span { color: var(--accent); }
+  .lead { margin: 6px 0 22px; color: var(--pencil); }
+  #home-search { display: flex; gap: 8px; margin-bottom: 30px; }
+  #home-q {
+    flex: 1; min-width: 0; height: 46px; padding: 0 18px;
+    background: var(--card); border: 1px solid var(--edge); border-radius: 999px; box-shadow: var(--shadow); font-size: 1rem;
+  }
+  body[data-theme="terminal"] #home-q, body[data-theme="terminal"] .btn { border-radius: 0; }
+  #home-q:focus { outline: none; border-color: var(--accent); }
+  .btn {
+    flex: none; height: 46px; padding: 0 22px; border: none; border-radius: 999px;
+    background: var(--accent); color: var(--accent-ink); font-weight: 700;
+  }
+  .home-inner h2 { margin: 0 0 10px; font: 700 1.3rem/1.2 var(--hand); }
+  .shelf { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; margin-bottom: 30px; }
+  .card {
+    display: flex; align-items: center; gap: 12px; padding: 12px; text-align: left;
+    background: var(--card); border: 1px solid var(--edge); border-radius: var(--radius); box-shadow: var(--shadow);
+    transition: transform 0.15s, border-color 0.15s;
+  }
+  .card:hover { transform: translateY(-2px); border-color: var(--accent); }
+  .mono {
+    flex: none; width: 40px; height: 40px; display: grid; place-items: center; border-radius: 8px;
+    font: 700 1.3rem/1 var(--hand); color: #fff;
+  }
+  body[data-theme="terminal"] .mono { border-radius: 0; }
+  .card b { display: block; font-size: 0.95rem; }
+  .card small { display: block; color: var(--pencil); font-size: 0.8rem; line-height: 1.3; }
+  .notes { margin: 0; padding-left: 20px; color: var(--pencil); font-size: 0.9rem; }
+  .notes li { margin-bottom: 4px; }
+
+  /* ---- the key ---- */
   #overlay {
-    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-    display: flex; justify-content: center; align-items: center;
-    background: rgba(0,0,0,0.8); z-index: 1000;
+    position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center;
+    padding: 16px; background: var(--paper);
   }
   #prompt-box {
-    background: #1a1a1a; padding: 40px; border-radius: 8px; max-width: calc(100% - 32px);
-    text-align: center; color: #e8e8e6; font-family: system-ui, sans-serif;
+    width: 100%; max-width: 380px; padding: 32px; text-align: center;
+    background: var(--card); border: 1px solid var(--edge); border-radius: var(--radius); box-shadow: var(--shadow);
   }
-  #prompt-box h2 { margin: 0 0 20px; font-size: 18px; }
-  #prompt-box input {
-    display: block; width: 300px; max-width: 100%; padding: 12px; margin: 10px 0;
-    background: #2a2a2a; border: 1px solid #444; border-radius: 4px;
-    color: #e8e8e6; font-size: 14px;
+  #prompt-box h2 { margin: 0; font: 700 2rem/1.1 var(--hand); }
+  #prompt-box h2 span { color: var(--accent); }
+  #prompt-box p { margin: 6px 0 16px; color: var(--pencil); }
+  #key-input {
+    display: block; width: 100%; height: 42px; padding: 0 14px; margin-bottom: 12px;
+    background: var(--paper-2); border: 1px solid var(--edge); border-radius: var(--radius);
   }
-  #prompt-box input:focus { outline: none; border-color: #6ee7a8; }
-  #prompt-box button {
-    padding: 12px 30px; background: #6ee7a8; color: #000;
-    border: none; border-radius: 4px; font-size: 14px; cursor: pointer;
-  }
-  #prompt-box button:hover { background: #5cd698; }
-  #prompt-box button:disabled { opacity: 0.6; cursor: default; }
-  #status { margin-top: 15px; font-size: 13px; color: #c9534b; min-height: 18px; max-width: 300px; }
-  #hint, #no-key { margin-top: 10px; font-size: 12px; color: #8a8a88; max-width: 300px; }
+  #key-input:focus { outline: none; border-color: var(--accent); }
+  #submit-btn { width: 100%; height: 42px; border-radius: var(--radius); }
+  #submit-btn:disabled { opacity: 0.6; cursor: default; }
+  #status { margin-top: 12px; min-height: 20px; font-size: 0.88rem; color: var(--danger); }
+  #hint, #no-key { margin-top: 8px; font-size: 0.8rem; color: var(--pencil); }
+
   #toast {
-    position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%);
-    max-width: calc(100% - 32px); padding: 10px 14px; border-radius: 6px;
-    background: #1a1a1a; color: #e8e8e6; font: 13px system-ui, sans-serif;
-    z-index: 1001; opacity: 0; transition: opacity 0.4s; pointer-events: none;
+    position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 1001;
+    max-width: calc(100% - 32px); padding: 10px 14px; border-radius: var(--radius);
+    background: var(--ink); color: var(--paper); font-size: 0.85rem;
+    opacity: 0; transition: opacity 0.4s; pointer-events: none;
   }
   #toast.show { opacity: 1; }
-  /* the address bar: tucked away as a small tab so video stays full screen */
-  #bar {
-    position: fixed; top: 0; left: 0; right: 0; z-index: 900;
-    display: flex; gap: 6px; align-items: center; padding: 8px;
-    background: #1a1a1a; border-bottom: 1px solid #333;
-    font: 14px system-ui, sans-serif; color: #e8e8e6;
-    transform: translateY(-100%); transition: transform 0.2s;
+
+  @media (max-width: 560px) {
+    #brand, #fwd { display: none; }
+    #homepage { padding-top: 28px; }
+    .home-inner h1 { font-size: 2rem; }
+    .shelf { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
   }
-  #bar.open { transform: none; }
-  #bar button {
-    flex: none; min-width: 34px; height: 34px; padding: 0 10px;
-    background: #2a2a2a; color: #e8e8e6; border: 1px solid #444; border-radius: 4px;
-    font-size: 15px; cursor: pointer;
-  }
-  #bar button:hover { border-color: #6ee7a8; }
-  #bar #go { background: #6ee7a8; color: #000; border-color: #6ee7a8; }
-  #url {
-    flex: 1; min-width: 0; height: 34px; padding: 0 10px;
-    background: #2a2a2a; color: #e8e8e6; border: 1px solid #444; border-radius: 4px; font-size: 14px;
-  }
-  #url:focus { outline: none; border-color: #6ee7a8; }
-  #handle {
-    position: fixed; top: 0; left: 50%; transform: translateX(-50%); z-index: 899;
-    width: 64px; height: 16px; padding: 0; border: none; border-radius: 0 0 8px 8px;
-    background: rgba(26,26,26,0.85); color: #8a8a88; font-size: 10px; line-height: 16px; cursor: pointer;
-  }
-  #edge { position: fixed; top: 0; left: 0; right: 0; height: 6px; z-index: 898; }
-  #bar[hidden], #handle[hidden], #edge[hidden] { display: none; }
-  @media (max-width: 480px) { #bar #back, #bar #fwd { display: none; } }
 </style>
 </head>
-<body>
-<div id="stage"></div>
-<div id="edge" hidden></div>
-<button id="handle" type="button" title="Address bar" aria-label="Show address bar" hidden>&#9660;</button>
-<form id="bar" hidden>
-  <button id="back" type="button" title="Back" aria-label="Back">&#8249;</button>
-  <button id="fwd" type="button" title="Forward" aria-label="Forward">&#8250;</button>
-  <button id="reload" type="button" title="Reload" aria-label="Reload">&#8635;</button>
-  <button id="home" type="button" title="Back to the start page" aria-label="Home">&#8962;</button>
-  <input id="url" type="text" placeholder="Type an address or search" autocomplete="off" spellcheck="false" aria-label="Address">
-  <button id="go" type="submit">Go</button>
-  <button id="hide" type="button" title="Hide" aria-label="Hide address bar">&#9650;</button>
-</form>
+<body data-theme="notebook">
+<div id="app">
+  <div id="tabstrip">
+    <div id="brand">Chalk <span>TV</span></div>
+    <div id="tabs" role="tablist"></div>
+    <button id="newtab" type="button" title="New tab" aria-label="New tab">+</button>
+  </div>
+  <div id="toolbar">
+    <button class="tool" id="back" type="button" title="Back" aria-label="Back">&#8249;</button>
+    <button class="tool" id="fwd" type="button" title="Forward" aria-label="Forward">&#8250;</button>
+    <button class="tool" id="reload" type="button" title="Reload" aria-label="Reload">&#8635;</button>
+    <button class="tool" id="home" type="button" title="Homepage" aria-label="Homepage">&#8962;</button>
+    <form id="bar"><input id="url" type="text" placeholder="Search lessons or type an address" autocomplete="off" spellcheck="false" aria-label="Address"></form>
+    <button class="tool" id="full" type="button" title="Full screen" aria-label="Full screen">&#9974;</button>
+  </div>
+  <main id="stage">
+    <section id="homepage">
+      <div class="home-inner">
+        <h1>Chalk <span>TV</span></h1>
+        <p class="lead">Videos and lessons for class, in one place.</p>
+        <form id="home-search">
+          <input id="home-q" type="text" placeholder="Search lessons or type an address" autocomplete="off" spellcheck="false" aria-label="Search">
+          <button class="btn" type="submit">Search</button>
+        </form>
+        <h2>Learning shelf</h2>
+        <div class="shelf" id="shelf"></div>
+        <h2>Notes</h2>
+        <ul class="notes">
+          <li>Links that open a new tab open as a Chalk TV tab instead.</li>
+          <li>Hold Ctrl (or middle-click) on a link or a card to open it in the background.</li>
+          <li>Your panic key from Notebook works here too.</li>
+        </ul>
+      </div>
+    </section>
+  </main>
+</div>
 <div id="overlay">
   <div id="prompt-box">
-    <h2>Enter tide key</h2>
+    <h2>Chalk <span>TV</span></h2>
+    <p>Enter your tide key to start.</p>
     <input type="password" id="key-input" placeholder="tide key" autocomplete="off" spellcheck="false">
-    <button id="submit-btn" type="button">Go</button>
+    <button class="btn" id="submit-btn" type="button">Start</button>
     <div id="status"></div>
     <div id="hint"></div>
     <div id="no-key">No key? The owner needs to give you one, or you need to self-host your own tide.</div>
@@ -98,22 +260,35 @@
 <div id="toast"></div>
 <script>
 // ============================================================
-// CONFIGURATION: Set the page Chalk TV starts on here
-// (the address bar at the top can go anywhere after that)
+// CONFIGURATION
+// TARGET_URL: the page the first tab opens. Leave it "" to start
+// on the homepage instead.
+// SHELF: the cards on the homepage - a name, an address, a note
+// and a colour for each.
 // ============================================================
 const TARGET_URL = "youtube.com";
+const SHELF = [
+  ["YouTube",              "youtube.com",               "Videos on everything",        "#c4302b"],
+  ["Khan Academy",         "khanacademy.org",           "Math, science and more",      "#14bf96"],
+  ["Crash Course",         "youtube.com/@crashcourse",  "History, science, literature","#2c5fb8"],
+  ["TED-Ed",               "youtube.com/@TEDEd",        "Short animated lessons",      "#e62b1e"],
+  ["Wikipedia",            "wikipedia.org",             "Look anything up",            "#555b66"],
+  ["NASA",                 "nasa.gov",                  "Space and science",           "#0b3d91"],
+  ["National Geographic",  "nationalgeographic.com",    "Nature and the world",        "#d4a017"],
+  ["Britannica",           "britannica.com",            "The encyclopedia",            "#1a6fa3"]
+];
 
 // ============================================================
 // Do not edit below this line
 // ============================================================
 
-/* Chalk TV opens TARGET_URL through the tide, the same way Seahorse does in
+/* Chalk TV opens pages through the tide, the same way Seahorse does in
    CHALK OS: the tide server on your own machine opens the connections, and
    Scramjet 2 rewrites what comes back so the site works.
 
    It borrows CHALK OS's tide files and its service worker instead of keeping
    copies. Scramjet 2 runs the tide from this page, and the service worker
-   only hands each request over to it.
+   only hands each request over to it. Every tab is its own Scramjet frame.
 
    The key is never written in this file. It is only kept in this browser if
    "Remember tide key" is turned on in Notebook's settings. */
@@ -121,6 +296,7 @@ const WISP_HOST = "tide.chalkbored.win";
 const TIDE_KEY_STORE = "chalk-tv.tide";
 const SETTINGS_STORE = "vault-settings";          /* Notebook's settings */
 const TIDE_BASE = location.pathname.replace(/[^/]*$/, "") + "TOOLS/CHALK-OS/";
+const MAX_TABS = 12;
 
 const overlay = document.getElementById("overlay");
 const keyInput = document.getElementById("key-input");
@@ -129,11 +305,23 @@ const statusEl = document.getElementById("status");
 const hintEl = document.getElementById("hint");
 const stage = document.getElementById("stage");
 const toastEl = document.getElementById("toast");
+const homepage = document.getElementById("homepage");
+const tabsEl = document.getElementById("tabs");
+const urlInput = document.getElementById("url");
+
+/* ---- Notebook's settings: the look, and whether to keep the key ---- */
+function notebookSettings() {
+  try { return JSON.parse(localStorage.getItem(SETTINGS_STORE) || "null") || {}; }
+  catch (e) { return {}; }
+}
+{
+  const theme = notebookSettings().theme;
+  if (theme === "chalkboard" || theme === "terminal") document.body.dataset.theme = theme;
+}
 
 /* ---- the key ---- */
 function rememberOn() {
-  try { return !!(JSON.parse(localStorage.getItem(SETTINGS_STORE) || "null") || {}).rememberTide; }
-  catch (e) { return false; }
+  return !!notebookSettings().rememberTide;
 }
 function savedKey() {
   try { return localStorage.getItem(TIDE_KEY_STORE) || ""; } catch (e) { return ""; }
@@ -149,14 +337,25 @@ try { localStorage.removeItem("chalk-tv.tide.enc"); } catch (e) {}
 if (!rememberOn()) forgetKey();
 
 /* ---- where to go ---- */
-function targetUrl() {
-  let raw = String(TARGET_URL || "").trim();
+function siteUrl(raw) {
+  raw = String(raw || "").trim();
   if (!raw || raw === "PUT_YOUR_URL_HERE") return null;
   if (!/^[a-z][a-z0-9+.-]*:/i.test(raw)) raw = "https://" + raw;
   try {
     const u = new URL(raw);
     return /^https?:$/.test(u.protocol) ? u.href : null;
   } catch (e) { return null; }
+}
+function targetUrl() { return siteUrl(TARGET_URL); }
+/* An address as typed: a full link, a bare site name, or else a search */
+function typedUrl(text) {
+  const t = String(text || "").trim();
+  if (!t) return null;
+  if (/^https?:\/\//i.test(t)) { try { return new URL(t).href; } catch (e) { return null; } }
+  if (!/\s/.test(t) && /^[^\/]+\.[a-z]{2,}(:\d+)?(\/.*)?$/i.test(t)) {
+    try { return new URL("https://" + t).href; } catch (e) {}
+  }
+  return "https://duckduckgo.com/?q=" + encodeURIComponent(t);
 }
 
 /* ---- the connection: always encrypted, never plain ws:// ---- */
@@ -256,13 +455,19 @@ function tvFrame(ctl) {
     const body = props.response.body;
     if (body instanceof ReadableStream) props.response.body = await new Response(body).arrayBuffer();
   });
+  sf.element.title = "Chalk TV";
+  sf.element.allow = "fullscreen; autoplay; encrypted-media; picture-in-picture";
+  sf.element.allowFullscreen = true;
   keepInFrame(sf);
+  passKeysUp(sf.element);
   return sf;
 }
 
-/* A page opened in a new tab or window would have nothing running the tide
-   behind it, and just shows an error. So links, buttons and forms that ask
-   for a new tab - and Ctrl-, Shift- or middle-clicks - open right here instead. */
+/* A page opened in a real new tab or window would have nothing running the
+   tide behind it, and just shows an error. So links and buttons that ask for
+   a new tab open as a Chalk TV tab instead (Ctrl- and middle-clicks in the
+   background), and forms that ask for one open in place. Pop-ups a page
+   opens without being clicked are not let through at all. */
 function keepInFrame(sf) {
   const patch = () => {
     let win, doc;
@@ -282,21 +487,31 @@ function keepInFrame(sf) {
       return /^https?:/i.test(url) ? url : null;
     };
     const opensElsewhere = target => !!target && !/^_(self|parent|top)$/i.test(target);
+    /* one click can reach here twice - as the click and as the window.open
+       Scramjet makes for it - so the same address straight after is ignored */
+    let lastUrl = "", lastAt = 0;
+    const openFromPage = (url, background) => {
+      if (url === lastUrl && Date.now() - lastAt < 1000) return;
+      lastUrl = url; lastAt = Date.now();
+      openTab(url, background);
+    };
     win.open = function (url) {
       const real = url === undefined || url === null || String(url) === "" ? null : realUrl(url);
-      if (real) sf.go(real);
+      const clicked = !win.navigator.userActivation || win.navigator.userActivation.isActive;
+      if (real && clicked) openFromPage(real, false);
       return null;
     };
     const onClick = e => {
       const a = e.target && e.target.closest && e.target.closest("a[href], area[href]");
       if (!a) return;
-      const extra = e.type === "auxclick" ? e.button === 1 : (e.ctrlKey || e.metaKey || e.shiftKey);
-      if (!extra && !opensElsewhere(a.getAttribute("target"))) return;
+      const background = e.type === "auxclick" ? e.button === 1 : (e.ctrlKey || e.metaKey);
+      if (e.type === "auxclick" && !background) return;
+      if (!background && !e.shiftKey && !opensElsewhere(a.getAttribute("target"))) return;
       const real = realUrl(a.getAttribute("href"));
       if (!real) return;
       e.preventDefault();
       e.stopImmediatePropagation();
-      sf.go(real);
+      openFromPage(real, background);
     };
     doc.addEventListener("click", onClick, true);
     doc.addEventListener("auxclick", onClick, true);
@@ -308,7 +523,7 @@ function keepInFrame(sf) {
     }, true);
   };
   sf.element.addEventListener("load", patch);
-  setInterval(patch, 500);
+  sf.patch = patch;
 }
 
 /* Firefox cannot pass a stream between pages, so video mostly will not play */
@@ -328,9 +543,9 @@ function toast(text) {
 
 /* ---- the panic key ----
    Notebook arms the panic key on this page when it opens Chalk TV in a new
-   tab, but key presses on the site itself land in the tide frame and never
-   get here. Hand each one up as a copy, so whatever key is set in Notebook
-   still works. Typing into a box on the site is left alone. */
+   tab, but key presses on a site land in its tide frame and never get here.
+   Hand each one up as a copy, so whatever key is set in Notebook still
+   works. Typing into a box on the site is left alone. */
 function passKeysUp(frame) {
   const attach = () => {
     let win;
@@ -349,61 +564,161 @@ function passKeysUp(frame) {
   attach();
 }
 
-/* ---- the address bar ---- */
-const bar = document.getElementById("bar");
-const urlInput = document.getElementById("url");
-const handle = document.getElementById("handle");
-const edge = document.getElementById("edge");
+/* ---- tabs ----
+   A tab shows either the homepage or its own tide frame. The frame is made
+   the first time the tab leaves the homepage and kept after that, so going
+   back to the homepage and then Back returns to the same page. */
+let ctl = null;
+let tabs = [];
+let active = null;
 
-/* An address as typed: a full link, a bare site name, or else a search */
-function typedUrl(text) {
-  const t = String(text || "").trim();
-  if (!t) return null;
-  if (/^https?:\/\//i.test(t)) { try { return new URL(t).href; } catch (e) { return null; } }
-  if (!/\s/.test(t) && /^[^\/]+\.[a-z]{2,}(:\d+)?(\/.*)?$/i.test(t)) {
-    try { return new URL("https://" + t).href; } catch (e) {}
+function hostOf(url) {
+  try { return new URL(url).hostname.replace(/^www\./, ""); } catch (e) { return url; }
+}
+function makeTab() {
+  const tab = { el: document.createElement("div"), sf: null, onHome: true, url: "", title: "" };
+  tab.el.className = "tab";
+  tab.el.setAttribute("role", "tab");
+  tab.el.innerHTML = '<span class="t-title"></span><button class="t-close" type="button" title="Close tab" aria-label="Close tab">&times;</button>';
+  tab.el.addEventListener("click", e => { if (!e.target.closest(".t-close")) activate(tab); });
+  tab.el.addEventListener("auxclick", e => { if (e.button === 1) closeTab(tab); });
+  tab.el.querySelector(".t-close").addEventListener("click", () => closeTab(tab));
+  tabsEl.appendChild(tab.el);
+  tabs.push(tab);
+  return tab;
+}
+function openTab(url, background) {
+  if (tabs.length >= MAX_TABS) {
+    toast("That's " + MAX_TABS + " tabs - close one to open another.");
+    return null;
   }
-  return "https://duckduckgo.com/?q=" + encodeURIComponent(t);
+  const tab = makeTab();
+  if (url) navigate(tab, url);
+  if (!background || !active) activate(tab);
+  else paintTab(tab);
+  return tab;
 }
-function openBar() { bar.classList.add("open"); handle.hidden = true; }
-function closeBar() {
-  if (bar.contains(document.activeElement)) document.activeElement.blur();
-  bar.classList.remove("open"); handle.hidden = false;
+function activate(tab) {
+  active = tab;
+  render();
+  tab.el.scrollIntoView({ block: "nearest", inline: "nearest" });
+  if (tab.onHome) document.getElementById("home-q").focus();
 }
-function setupBar(sf) {
-  bar.hidden = false; edge.hidden = false; handle.hidden = false;
-  handle.onclick = () => { openBar(); urlInput.focus(); urlInput.select(); };
-  edge.onmouseenter = openBar;
-  bar.onmouseleave = () => { if (!bar.contains(document.activeElement)) closeBar(); };
-  document.getElementById("hide").onclick = closeBar;
-  document.getElementById("back").onclick = () => sf.back();
-  document.getElementById("fwd").onclick = () => sf.forward();
-  document.getElementById("reload").onclick = () => sf.reload();
-  document.getElementById("home").onclick = () => { sf.go(targetUrl()); closeBar(); };
-  bar.onsubmit = e => {
-    e.preventDefault();
-    const url = typedUrl(urlInput.value);
-    if (!url) return;
-    sf.go(url);
-    closeBar();
-  };
-  urlInput.onkeydown = e => { if (e.key === "Escape") closeBar(); };
+function closeTab(tab) {
+  const i = tabs.indexOf(tab);
+  if (i < 0) return;
+  tabs.splice(i, 1);
+  tab.el.remove();
+  if (tab.sf) {
+    tab.sf.element.remove();
+    const f = ctl.frames.indexOf(tab.sf);
+    if (f >= 0) ctl.frames.splice(f, 1);
+  }
+  if (!tabs.length) return openTab(null, false);
+  if (active === tab) activate(tabs[Math.min(i, tabs.length - 1)]);
+}
+function navigate(tab, url) {
+  if (!url) return;
+  if (!tab.sf) {
+    tab.sf = tvFrame(ctl);
+    stage.appendChild(tab.sf.element);
+  }
+  tab.onHome = false;
+  tab.url = url;
+  tab.title = "";
+  tab.sf.go(url);
+  render();
+}
+function goHome(tab) {
+  tab.onHome = true;
+  render();
+  if (tab === active) document.getElementById("home-q").focus();
+}
+function paintTab(tab) {
+  const title = tab.onHome ? "Homepage" : (tab.title || hostOf(tab.url) || "Loading…");
+  tab.el.querySelector(".t-title").textContent = title;
+  tab.el.title = title;
+  tab.el.classList.toggle("active", tab === active);
+  tab.el.setAttribute("aria-selected", String(tab === active));
+}
+function render() {
+  for (const tab of tabs) {
+    paintTab(tab);
+    if (tab.sf) tab.sf.element.classList.toggle("away", tab !== active || tab.onHome);
+  }
+  homepage.classList.toggle("away", !active || !active.onHome);
+  if (document.activeElement !== urlInput) urlInput.value = active && !active.onHome ? active.url : "";
+}
+/* keep each tab's title and address in step with what its page is really
+   showing, including links clicked inside it */
+function watchTabs() {
+  let changed = false;
+  for (const tab of tabs) {
+    if (!tab.sf) continue;
+    tab.sf.patch();
+    let win, href;
+    try { win = tab.sf.element.contentWindow; href = win.location.href; } catch (e) { continue; }
+    if (!href || !href.startsWith(tab.sf.context.prefix.href)) continue;
+    let url = tab.url, title = tab.title;
+    try { url = $scramjet.unrewriteUrl(href, tab.sf.context) || url; } catch (e) {}
+    try { title = String(win.document.title || "").trim() || title; } catch (e) {}
+    if (url !== tab.url || title !== tab.title) { tab.url = url; tab.title = title; changed = true; }
+  }
+  if (changed) render();
+}
 
-  /* keep the box showing the real address of whatever is open, including
-     links clicked and pages that change their own address */
-  let last = "";
-  const check = () => {
-    let href;
-    try { href = sf.element.contentWindow.location.href; } catch (e) { return; }
-    if (!href || !href.startsWith(sf.context.prefix.href)) return;
-    let url;
-    try { url = $scramjet.unrewriteUrl(href, sf.context); } catch (e) { return; }
-    if (!url || url === last) return;
-    last = url;
-    if (document.activeElement !== urlInput) urlInput.value = url;
+/* ---- the toolbar and the homepage ---- */
+function goTyped(text, background) {
+  const url = typedUrl(text);
+  if (!url) return;
+  if (background) openTab(url, true);
+  else navigate(active, url);
+}
+function setupChrome() {
+  document.getElementById("newtab").onclick = () => openTab(null, false);
+  document.getElementById("back").onclick = () => {
+    if (active.onHome) { if (active.sf) { active.onHome = false; render(); } }
+    else active.sf.back();
   };
-  sf.element.addEventListener("load", check);
-  setInterval(check, 1000);
+  document.getElementById("fwd").onclick = () => { if (!active.onHome) active.sf.forward(); };
+  document.getElementById("reload").onclick = () => { if (!active.onHome) active.sf.reload(); };
+  document.getElementById("home").onclick = () => goHome(active);
+  document.getElementById("full").onclick = () => {
+    if (document.fullscreenElement) document.exitFullscreen();
+    else if (stage.requestFullscreen) stage.requestFullscreen().catch(() => {});
+  };
+  document.getElementById("bar").onsubmit = e => {
+    e.preventDefault();
+    goTyped(urlInput.value, false);
+    urlInput.blur();
+  };
+  urlInput.onfocus = () => urlInput.select();
+  urlInput.onkeydown = e => { if (e.key === "Escape") { urlInput.blur(); render(); } };
+  urlInput.onblur = () => setTimeout(render, 0);
+  document.getElementById("home-search").onsubmit = e => {
+    e.preventDefault();
+    const q = document.getElementById("home-q");
+    goTyped(q.value, false);
+    q.value = "";
+  };
+
+  const shelf = document.getElementById("shelf");
+  for (const [name, addr, note, colour] of SHELF) {
+    const url = siteUrl(addr);
+    if (!url) continue;
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "card";
+    card.innerHTML = '<span class="mono"></span><span><b></b><small></small></span>';
+    card.querySelector(".mono").textContent = name.charAt(0);
+    card.querySelector(".mono").style.background = colour || "var(--accent)";
+    card.querySelector("b").textContent = name;
+    card.querySelector("small").textContent = note || hostOf(url);
+    card.onclick = e => { if (e.ctrlKey || e.metaKey) openTab(url, true); else navigate(active, url); };
+    card.onauxclick = e => { if (e.button === 1) openTab(url, true); };
+    shelf.appendChild(card);
+  }
+  setInterval(watchTabs, 700);
 }
 
 /* ---- going ---- */
@@ -412,8 +727,6 @@ async function connect(key, fromSaved) {
   if (busy) return;
   const why = secureReason();
   if (why) return showPrompt(why);
-  const url = targetUrl();
-  if (!url) return showPrompt("No target URL configured. Edit this file and set TARGET_URL.");
 
   busy = true;
   submitBtn.disabled = true;
@@ -425,7 +738,6 @@ async function connect(key, fromSaved) {
     if (fromSaved && /Turned away/.test(test.why)) forgetKey();
     return showPrompt(test.why);
   }
-  let ctl;
   try { ctl = await startTide(key); }
   catch (err) {
     busy = false;
@@ -433,15 +745,8 @@ async function connect(key, fromSaved) {
   }
   saveKey(key);
   keyInput.value = "";
-  const sf = tvFrame(ctl);
-  sf.element.title = "Chalk TV";
-  sf.element.allow = "fullscreen; autoplay; encrypted-media; picture-in-picture";
-  sf.element.allowFullscreen = true;
-  stage.appendChild(sf.element);
-  passKeysUp(sf.element);
-  setupBar(sf);
-  urlInput.value = url;
-  sf.go(url);
+  setupChrome();
+  openTab(targetUrl(), false);
   overlay.style.display = "none";
   if (!canStream()) toast("Video mostly won't play through the tide in Firefox. Chrome or Edge can do it.");
 }
