@@ -781,6 +781,19 @@
             </div>
 
             <div class="group">
+              <h2>Tide</h2>
+              <p>How Chalk TV reaches your tide.</p>
+              <div class="setting">
+                <div><h3>Remember tide key</h3><p>Chalk TV keeps the key in this browser and connects on its own. Off, it asks every time. Turning this off forgets the key.</p></div>
+                <button class="switch" id="tide-remember" type="button" role="switch" aria-checked="false" aria-label="Remember tide key"></button>
+              </div>
+              <div class="setting-foot">
+                <span id="tide-hint"></span>
+                <button class="link-btn" id="tide-forget" type="button">Forget tide key</button>
+              </div>
+            </div>
+
+            <div class="group">
               <h2>Setup</h2>
               <div class="setting">
                 <div><h3>First-time setup</h3><p>Walk through panic key, subject, look and Home again.</p></div>
@@ -876,7 +889,7 @@
 
     const DEFAULT_SETTINGS = {
       home: false, plain: false, junk: false, dev: false, layout: 'default', rail: 'open',
-      disguise: 'google', alwaysBlank: false, setupDone: false, theme: 'notebook',
+      disguise: 'google', alwaysBlank: false, setupDone: false, theme: 'notebook', rememberTide: false,
     };
     let settings = Object.assign({}, DEFAULT_SETTINGS);
     let savedSettings = null;
@@ -1459,8 +1472,9 @@
       $('rail-toggle').title = railLabel;
       $('rail-toggle').setAttribute('aria-label', railLabel);
 
-      [['exp-home', 'home'], ['exp-plain', 'plain'], ['exp-junk', 'junk'], ['exp-dev', 'dev'], ['always-blank', 'alwaysBlank']]
+      [['exp-home', 'home'], ['exp-plain', 'plain'], ['exp-junk', 'junk'], ['exp-dev', 'dev'], ['always-blank', 'alwaysBlank'], ['tide-remember', 'rememberTide']]
         .forEach(([id, key]) => $(id).setAttribute('aria-checked', String(!!settings[key])));
+      showTideHint();
       document.querySelectorAll('#disguise-choice button').forEach((b) => b.classList.toggle('on', b.dataset.disguise === settings.disguise));
       document.querySelectorAll('#layout-choice button').forEach((b) => b.classList.toggle('on', b.dataset.layout === settings.layout));
       document.querySelectorAll('#theme-choice button').forEach((b) => b.classList.toggle('on', b.dataset.themePick === settings.theme));
@@ -1491,6 +1505,24 @@
       else if ($('panel-dev').classList.contains('active')) showPanel('games');
     });
     $('always-blank').addEventListener('click', () => change('alwaysBlank', !settings.alwaysBlank));
+
+    // ---- tide key (Chalk TV reads the setting and keeps the key under this name) ----
+    const TIDE_KEY_STORE = 'chalk-tv.tide';
+    function tideKeySaved() {
+      try { return !!localStorage.getItem(TIDE_KEY_STORE); } catch (e) { return false; }
+    }
+    function forgetTideKey() {
+      try { localStorage.removeItem(TIDE_KEY_STORE); } catch (e) {}
+    }
+    function showTideHint() {
+      $('tide-hint').textContent = tideKeySaved() ? 'A key is saved in this browser.' : 'No key saved.';
+      $('tide-forget').hidden = !tideKeySaved();
+    }
+    $('tide-remember').addEventListener('click', () => {
+      if (settings.rememberTide) forgetTideKey();
+      change('rememberTide', !settings.rememberTide);
+    });
+    $('tide-forget').addEventListener('click', () => { forgetTideKey(); showTideHint(); });
     $('open-cloaked').addEventListener('click', openCloaked);
     document.querySelectorAll('#layout-choice button').forEach((b) => b.addEventListener('click', () => change('layout', b.dataset.layout)));
     document.querySelectorAll('#theme-choice button').forEach((b) => b.addEventListener('click', () => change('theme', b.dataset.themePick)));
