@@ -5118,15 +5118,15 @@ function filesApp(win, startPath){
 
    Seahorse can only read sites that agree to be read, and almost none do.
    Tide is the way round that: a small server on a machine you own opens the
-   connections, and Scramjet - a service worker living beside this page -
-   rewrites everything that comes back so the site works normally, scripts,
-   logins and all.
+   connections, and Scramjet rewrites everything that comes back so the site
+   works normally, scripts, logins and all.
 
    Three pieces, all from Mercury Workshop, sitting in tide/ next to
-   index.html: Scramjet itself, bare-mux (which carries requests to the
-   transport) and libcurl (the transport that speaks to the server). The
-   server address is an ordinary setting; the key is kept apart from
-   settings, so a backup file never carries it.
+   index.html: Scramjet 2 itself (scram/), its controller (controller/),
+   which runs the tide from this page with a small service worker beside it
+   handing requests over, and libcurl (the transport that speaks to the
+   server). The server address is an ordinary setting; the key is kept apart
+   from settings, so a backup file never carries it.
    ============================================================ */
 const TIDE_TOKEN_KEY = "boxos.tide";
 const Tide = { token: "", ready: null, ctl: null };
@@ -5169,9 +5169,9 @@ function tideTest(){
   });
 }
 /* Whether this browser can pass a stream from one page to another. Where it
-   cannot - Firefox, as of now - bare-mux has to download each answer whole
-   before handing it over. Pages are fine; video is not, because a video is
-   fetched as an open-ended stream that never finishes. */
+   cannot - Firefox, as of now - each answer has to be downloaded whole
+   before it is handed to the service worker. Pages are fine; video is not,
+   because a video is fetched as an open-ended stream that never finishes. */
 let tideStreams = null;
 function tideCanStream(){
   if (tideStreams !== null) return tideStreams;
@@ -5194,23 +5194,18 @@ function loadScriptOnce(src, why){
   }));
   return SCRIPTS.get(src);
 }
-/* Scramjet keeps its settings in a database called $scramjet and only fills
-   in its tables at the moment it creates it. A half-made one - opened by the
-   service worker before the page ever set it up - is already at the version
-   Scramjet asks for, so it never gets repaired. Throw it away and try once
-   more. */
-async function tideInitController(ctl){
-  try { await ctl.init(); }
-  catch (err){
-    const msg = String((err && err.message) || err);
-    if (!/object stores? was not found|NotFoundError/i.test(msg)) throw err;
-    for (const reg of await navigator.serviceWorker.getRegistrations()) await reg.unregister();
-    await new Promise(done => {
-      const req = indexedDB.deleteDatabase("$scramjet");
-      req.onsuccess = req.onerror = req.onblocked = done;
+/* navigator.serviceWorker.ready only settles for a worker that covers the
+   page asking, so wait on the registration itself */
+function tideWorker(reg){
+  if (reg.active) return Promise.resolve(reg.active);
+  const w = reg.installing || reg.waiting;
+  return new Promise((ok, fail) => {
+    const timer = setTimeout(() => fail(new Error("Tide's service worker did not start.")), 15000);
+    w.addEventListener("statechange", () => {
+      if (w.state === "activated"){ clearTimeout(timer); ok(reg.active || w); }
+      else if (w.state === "redundant"){ clearTimeout(timer); fail(new Error("Tide's service worker did not start.")); }
     });
-    await ctl.init();
-  }
+  });
 }
 function tideStart(){
   if (Tide.ready) return Tide.ready;
@@ -5220,40 +5215,137 @@ function tideStart(){
     if (!Tide.token) throw new Error("No key for Tide yet. Settings › Tide has the box for it.");
     if (!navigator.serviceWorker || !window.isSecureContext)
       throw new Error("Tide needs an https:// address. It cannot run from a file on disk.");
-    await loadScriptOnce(base + "tide/scram/scramjet.all.js");
-    await loadScriptOnce(base + "tide/baremux/index.js");
-    if (!window.$scramjetLoadController || !window.BareMux)
+    const reg = await navigator.serviceWorker.register(base + "sw.js", { scope: base, updateViaCache: "none" });
+    const sw = await tideWorker(reg);
+    await loadScriptOnce(base + "tide/scram/scramjet.js");
+    await loadScriptOnce(base + "tide/controller/controller.api.js");
+    await loadScriptOnce(base + "tide/libcurl/libcurl-client.js");
+    if (!window.$scramjet || !window.$scramjetController || !window.LibcurlTransport)
       throw new Error("The files in tide/ did not load properly.");
-    const { ScramjetController } = $scramjetLoadController();
-    const ctl = new ScramjetController({
-      prefix: base + "tide/go/",
-      files: {
-        wasm: base + "tide/scram/scramjet.wasm.wasm",
-        all:  base + "tide/scram/scramjet.all.js",
-        sync: base + "tide/scram/scramjet.sync.js"
-      },
-      /* Scramjet's own defaults, spelled out: the config is merged one level
-         deep, so passing only the flag we care about would switch off the rest */
-      flags: {
-        serviceworkers: false, syncxhr: false, strictRewrites: true, rewriterLogs: false,
-        captureErrors: true, cleanErrors: false, scramitize: false, sourcemaps: true,
-        destructureRewrites: false, allowInvalidJs: true, allowFailedIntercepts: true,
-        /* a file is caught here and put into Downloads rather than onto the real computer */
-        interceptDownloads: true
+    const ctl = new $scramjetController.Controller({
+      serviceworker: sw,
+      transport: new LibcurlTransport.LibcurlClient({ wisp: tideWisp() }),
+      config: {
+        prefix: base + "tide/go/",
+        scramjetPath: base + "tide/scram/scramjet.js",
+        injectPath: base + "tide/controller/controller.inject.js",
+        wasmPath: base + "tide/scram/scramjet.wasm"
       }
     });
-    await tideInitController(ctl);
-    ctl.addEventListener("download", e => tideDownload(e.download));
-    /* order matters: the page builds the database, then the worker reads it */
-    await navigator.serviceWorker.register(base + "sw.js", { scope: base });
-    await navigator.serviceWorker.ready;
-    const conn = new BareMux.BareMuxConnection(base + "tide/baremux/worker.js");
-    await conn.setTransport(base + "tide/libcurl/index.mjs", [{ websocket: tideWisp() }]);
+    await ctl.wait();
     Tide.ctl = ctl;
     return ctl;
   })();
   Tide.ready.catch(() => { Tide.ready = null; });
   return Tide.ready;
+}
+/* Everything a frame opened through Tide needs beyond Scramjet's own work:
+   files it hands over go into Downloads, a browser that cannot pass streams
+   gets each answer whole, and the frame's real address is reported back. */
+function tideFilename(disposition){
+  const star = /filename\*\s*=\s*(?:UTF-8'[^']*')?([^;]+)/i.exec(disposition);
+  if (star){ try { return decodeURIComponent(star[1].trim().replace(/^"|"$/g, "")); } catch (e){} }
+  const plain = /filename\s*=\s*("([^"]*)"|[^;]+)/i.exec(disposition);
+  return plain ? (plain[2] !== undefined ? plain[2] : plain[1]).trim() : "";
+}
+function tideFrame(ctl, onUrl){
+  const sf = ctl.createFrame();
+  const { Tap, BareResponse } = $scramjet;
+  Tap.tap(sf.hooks.fetch.preresponse, (ctx, props) => {
+    const r = props.response;
+    const disposition = r.headers.get("content-disposition") || "";
+    const dest = ctx.parsed.destination || ctx.request.rawDestination;
+    if (!/^\s*attachment/i.test(disposition) || (dest !== "document" && dest !== "iframe") || !r.body) return;
+    tideDownload({
+      filename: tideFilename(disposition),
+      url: String(ctx.parsed.url),
+      type: r.headers.get("content-type") || "",
+      length: Number(r.headers.get("content-length")) || 0,
+      body: r.body
+    });
+    /* nothing to show: the frame stays on the page it was on */
+    props.response = BareResponse.fromNativeResponse(new Response(null, { status: 204 }));
+  });
+  if (!tideCanStream()) Tap.tap(sf.hooks.fetch.response, async (ctx, props) => {
+    const body = props.response.body;
+    if (body instanceof ReadableStream) props.response.body = await new Response(body).arrayBuffer();
+  });
+  if (onUrl){
+    let last = "";
+    const check = () => {
+      let href;
+      try { href = sf.element.contentWindow.location.href; } catch (e){ return; }
+      if (!href || !href.startsWith(sf.context.prefix.href)) return;
+      let url;
+      try { url = $scramjet.unrewriteUrl(href, sf.context); } catch (e){ return; }
+      if (url && url !== last){ last = url; onUrl(url); }
+    };
+    sf.element.addEventListener("load", check);
+    /* history.pushState and #hash changes do not fire load, so look now and then;
+       a frame that has been taken off the page is finished with for good */
+    let seen = false;
+    const timer = setInterval(() => {
+      if (sf.element.isConnected){ seen = true; check(); }
+      else if (seen) clearInterval(timer);
+    }, 1000);
+  }
+  tideKeepInFrame(sf);
+  return sf;
+}
+/* A page opened in a new tab or window would have nothing running the tide
+   behind it, and just shows an error. So links, buttons and forms that ask
+   for a new tab - and Ctrl-, Shift- or middle-clicks - open in this frame. */
+function tideKeepInFrame(sf){
+  const patch = () => {
+    let win, doc;
+    try { win = sf.element.contentWindow; doc = win.document; } catch (e){ return; }
+    if (!win || !doc || win.__tideKeep) return;
+    if (!String(win.location.href).startsWith(sf.context.prefix.href)) return;
+    win.__tideKeep = true;
+    /* the real address a link points at, however it is written */
+    const realUrl = raw => {
+      let url = null;
+      try {
+        const abs = new URL(String(raw), win.location.href).href;
+        url = abs.startsWith(sf.context.prefix.href)
+          ? $scramjet.unrewriteUrl(abs, sf.context)
+          : new URL(String(raw), $scramjet.unrewriteUrl(win.location.href, sf.context)).href;
+      } catch (e){ return null; }
+      return /^https?:/i.test(url) ? url : null;
+    };
+    const opensElsewhere = target => !!target && !/^_(self|parent|top)$/i.test(target);
+    win.open = function (url){
+      const real = url === undefined || url === null || String(url) === "" ? null : realUrl(url);
+      if (real) sf.go(real);
+      return null;
+    };
+    const onClick = e => {
+      const a = e.target && e.target.closest && e.target.closest("a[href], area[href]");
+      if (!a) return;
+      const extra = e.type === "auxclick" ? e.button === 1 : (e.ctrlKey || e.metaKey || e.shiftKey);
+      if (!extra && !opensElsewhere(a.getAttribute("target"))) return;
+      const real = realUrl(a.getAttribute("href"));
+      if (!real) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      sf.go(real);
+    };
+    doc.addEventListener("click", onClick, true);
+    doc.addEventListener("auxclick", onClick, true);
+    doc.addEventListener("submit", e => {
+      const form = e.target;
+      const by = e.submitter;
+      if (by && opensElsewhere(by.getAttribute("formtarget"))) by.setAttribute("formtarget", "_self");
+      if (form && opensElsewhere(form.getAttribute("target"))) form.setAttribute("target", "_self");
+    }, true);
+  };
+  sf.element.addEventListener("load", patch);
+  /* a frame that has been taken off the page is finished with for good */
+  let seen = false;
+  const timer = setInterval(() => {
+    if (sf.element.isConnected){ seen = true; patch(); }
+    else if (seen) clearInterval(timer);
+  }, 500);
 }
 /* A file a proxied page hands over. It is read here and saved into Downloads,
    the same as anything else Seahorse fetches, and never onto the real machine. */
@@ -5939,19 +6031,18 @@ function browserApp(win, startTarget){
     }
     if (my !== reqId) return;
     let sf = active && active.sf;
-    if (!sf || !stage.contains(sf.frame)){
+    if (!sf || !stage.contains(sf.element)){
       stage.innerHTML = "";
       frame = null;
-      sf = ctl.createFrame();
-      sf.frame.title = "Tide";
-      stage.appendChild(sf.frame);
-      if (active) active.sf = sf;
-      sf.addEventListener("urlchange", e => {
-        if (!e.url || !active || active.sf !== sf) return;
-        setAddr(e.url);
-        if (current) current.url = e.url;
-        try { setTitle(new URL(e.url).hostname.replace(/^www\./, "")); } catch (x){}
+      sf = tideFrame(ctl, url => {
+        if (!active || active.sf !== sf) return;
+        setAddr(url);
+        if (current) current.url = url;
+        try { setTitle(new URL(url).hostname.replace(/^www\./, "")); } catch (x){}
       });
+      sf.element.title = "Tide";
+      stage.appendChild(sf.element);
+      if (active) active.sf = sf;
     }
     sf.go(t.url);
   }
@@ -12750,7 +12841,8 @@ function settingsApp(win){
           "SEA OS. Your files and settings are not touched.", "Clear and reload"))) return;
         try {
           for (const reg of await navigator.serviceWorker.getRegistrations()) await reg.unregister();
-          indexedDB.deleteDatabase("$scramjet");
+          indexedDB.deleteDatabase("__scramjet_controller");
+          indexedDB.deleteDatabase("$scramjet");     /* left behind by Scramjet 1 */
         } catch (e){}
         setTimeout(() => location.reload(), 400);
       };
