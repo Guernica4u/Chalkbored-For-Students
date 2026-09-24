@@ -54,6 +54,34 @@
   }
 
   /* Terminal: the original vault look. Near-black, green, monospace, square corners. */
+  /* Night: soft dark blue-grey, warm text, gentle accent. Easy on the eyes. */
+  body[data-theme="night"] {
+    --paper: #16181d;
+    --paper-2: #1f232a;
+    --card: #1c1f26;
+    --ink: #d9d5cc;
+    --pencil: #8b909a;
+    --rule-line: transparent;
+    --margin-line: transparent;
+    --edge: #2b3039;
+    --accent: #8fb3d9;
+    --highlight: #2f4157;
+    --highlight-ink: #e8e4db;
+    --danger: #d98b7f;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 6px 18px rgba(0, 0, 0, 0.18);
+    --rail: #14161a;
+    --hand: var(--body);
+    color-scheme: dark;
+  }
+  body[data-theme="night"] .main { background-image: none; }
+  body[data-theme="night"] .thumb { background-image: none; background: #20242c; }
+  body[data-theme="night"] .mono { transform: none; font-size: 2rem; color: var(--accent); }
+  body[data-theme="night"] .card:hover,
+  body[data-theme="night"] .card-wrap.is-open .card { transform: translateY(-3px); box-shadow: 0 0 0 1px var(--accent), 0 10px 24px rgba(0, 0, 0, 0.3); }
+  body[data-theme="night"] h1 .scribble { background: none; padding: 0; color: var(--ink); }
+  body[data-theme="night"] .btn.primary { color: var(--paper); }
+  body[data-theme="night"] .tip::before { color: var(--accent); }
+
   body[data-theme="terminal"] {
     --paper: #0c0d10;
     --paper-2: #171b20;
@@ -423,11 +451,6 @@
   }
   .open-menu button:hover, .open-menu button:focus-visible { background: var(--highlight); color: var(--highlight-ink); }
 
-  /* movie night: wide rows that scroll sideways */
-  body.layout-movie .cards { display: flex; gap: 1.2rem; overflow-x: auto; padding: 0.4rem 0.2rem 1.4rem; scroll-snap-type: x mandatory; }
-  body.layout-movie .card-wrap, body.layout-movie .cards > .card { flex: 0 0 300px; scroll-snap-align: start; }
-  body.layout-movie .mono { font-size: 3.4rem; }
-  body.layout-movie .open-menu { top: auto; bottom: 3.2rem; }
 
   /* ---------------- tools ---------------- */
   .tools { display: flex; flex-direction: column; gap: 0.9rem; }
@@ -636,29 +659,6 @@
   .frame { flex: 1; width: 100%; min-height: 70vh; border: 1px solid var(--edge); border-radius: 6px; background: #0c0d10; }
   .frame.blend { border: 0; background: transparent; min-height: 80vh; }
 
-  /* ---------------- plain look (experimental) ---------------- */
-  body.plain {
-    --hand: var(--body);
-    --paper: #f4f4f4; --paper-2: #ebebeb; --card: #ffffff; --ink: #222;
-    --pencil: #666; --edge: #d4d4d4; --rule-line: transparent; --margin-line: transparent;
-    --accent: #3a6ea5; --highlight: #dfe9f5; --highlight-ink: #222; --rail: #ececec;
-    --shadow: none;
-  }
-  body.plain[data-theme="chalkboard"],
-  body.plain[data-theme="terminal"] {
-    --paper: #1f1f1f; --paper-2: #2a2a2a; --card: #262626; --ink: #e5e5e5;
-    --pencil: #9a9a9a; --edge: #3a3a3a; --accent: #8ab4f8; --highlight: #34404f; --highlight-ink: #e5e5e5; --rail: #1a1a1a;
-  }
-  body.plain * { animation: none !important; }
-  body.plain .card, body.plain .tool { transform: none !important; }
-  body.plain h1 .scribble { background: none; }
-  body.plain .mono, body.plain .tip::before { display: none; }
-  body.plain .cards { grid-template-columns: 1fr; gap: 0; border: 1px solid var(--edge); border-radius: 6px; overflow: visible; }
-  body.plain .card { flex-direction: row; border: 0; border-bottom: 1px solid var(--edge); border-radius: 0; }
-  body.plain .card-wrap:last-child .card { border-bottom: 0; }
-  body.plain .thumb { display: none; }
-  body.plain .card-body { flex: 1; }
-  body.plain .card.soon { display: none; }
 
   /* ---------------- small screens ---------------- */
   @media (max-width: 760px) {
@@ -835,20 +835,14 @@
 
             <div class="group">
               <h2>Look</h2>
-              <p>How the page looks and how things are laid out.</p>
+              <p>How ChalkBored looks.</p>
               <div class="setting">
-                <div><h3>Theme</h3><p>Notebook is paper and pen. Chalkboard is dark green. Terminal is the original look.</p></div>
+                <div><h3>Theme</h3><p>Notebook is paper and pen. Chalkboard is dark green. Terminal is the original look. Night is a soft dark theme that's easy on the eyes. Chat and Requests match it.</p></div>
                 <div class="choice" id="theme-choice">
                   <button type="button" data-theme-pick="notebook">Notebook</button>
                   <button type="button" data-theme-pick="chalkboard">Chalkboard</button>
                   <button type="button" data-theme-pick="terminal">Terminal</button>
-                </div>
-              </div>
-              <div class="setting">
-                <div><h3>Layout</h3><p>Movie night lays games out in one wide row you scroll sideways.</p></div>
-                <div class="choice" id="layout-choice">
-                  <button type="button" data-layout="default">Default</button>
-                  <button type="button" data-layout="movie">Movie night</button>
+                  <button type="button" data-theme-pick="night">Night</button>
                 </div>
               </div>
             </div>
@@ -859,10 +853,6 @@
               <div class="setting">
                 <div><h3>Home app</h3><p>Adds a Home app with recents, quick buttons and a surprise button, and opens there first.</p></div>
                 <button class="switch" id="exp-home" type="button" role="switch" aria-checked="false" aria-label="Home app"></button>
-              </div>
-              <div class="setting">
-                <div><h3>Plain look</h3><p>No handwriting, no ruled paper, no animations. Games as a simple list.</p></div>
-                <button class="switch" id="exp-plain" type="button" role="switch" aria-checked="false" aria-label="Plain look"></button>
               </div>
               <div class="setting">
                 <div><h3>Junk Drawer</h3><p>Adds a Junk Drawer app for unfinished apps and the boring stuff.</p></div>
@@ -896,7 +886,7 @@
       </main>
 
       <footer>
-        <span>Chalk &middot; Made For Fun &middot; <button class="ver" id="ver" type="button" title="What's new">v0.6</button></span>
+        <span>Chalk &middot; Made For Fun &middot; <button class="ver" id="ver" type="button" title="What's new">v0.7</button></span>
         <p class="tip" id="tip"></p>
       </footer>
     </div>
@@ -922,14 +912,14 @@
   <div class="modal" id="notes" hidden role="dialog" aria-modal="true" aria-labelledby="notes-title">
     <div class="modal-box">
       <p class="modal-step">What's new</p>
-      <h2 id="notes-title">ChalkBored v0.6</h2>
+      <h2 id="notes-title">ChalkBored v0.7</h2>
       <ul>
-        <li><b>Requests.</b> Suggest games and features, and vote on what gets added next. Uses your Chalk Chat account.</li>
-        <li><b>Terminal theme.</b> The original look is back, in Settings &rarr; Look.</li>
-        <li><b>New game:</b> Escape Road. Snow Rider 3D and Retro Bowl are back too.</li>
-        <li><b>Chalk OS</b> opens again.</li>
-        <li><b>Chat</b> is back, in its own tab.</li>
-        <li><b>New setup</b> that covers everything, including the extras.</li>
+        <li><b>Night theme.</b> Soft and dark, easy on the eyes. Settings &rarr; Look.</li>
+        <li><b>Chat matches your theme</b> automatically, and changes when you change it.</li>
+        <li><b>@mentions</b> in Chat, with a count on the Chat button when someone @s you.</li>
+        <li><b>Requests</b> has its first ideas to vote on.</li>
+        <li><b>New game:</b> Slope.</li>
+        <li>Plain look and Movie night are gone. If you used Plain look, you're on Night now.</li>
       </ul>
       <div class="modal-actions"><span class="spacer"></span><button class="btn primary" id="notes-close" type="button">Got it</button></div>
     </div>
@@ -977,13 +967,13 @@
     const PANIC_STORE = 'vault-panic-key';
     const RECENTS_STORE = 'vault-recents';
     const SEEN_STORE = 'vault-seen-version';
-    const VERSION = '0.6';
-    const THEMES = ['notebook', 'chalkboard', 'terminal'];
+    const VERSION = '0.7';
+    const SETUP_VERSION = '0.6';   // bump this when everyone should see setup again
+    const THEMES = ['notebook', 'chalkboard', 'terminal', 'night'];
 
     const DEFAULT_SETTINGS = {
-      home: false, plain: false, junk: false, dev: false, layout: 'default', rail: 'open',
-      disguise: 'google', alwaysBlank: false, setupDone: false, setupVersion: '', theme: 'notebook',
-      disguise: 'google', alwaysBlank: false, setupDone: false, theme: 'notebook', rememberTide: false,
+      home: false, junk: false, rail: 'open',
+      disguise: 'google', alwaysBlank: false, setupDone: false, setupVersion: '', theme: 'notebook', rememberTide: false,
     };
     let settings = Object.assign({}, DEFAULT_SETTINGS);
     let savedSettings = null;
@@ -996,6 +986,12 @@
     } catch (e) {}
     if (returningVisitor && !(savedSettings && 'setupDone' in savedSettings)) settings.setupDone = true;
     if (!(settings.disguise in { off: 1, docs: 1, classroom: 1, google: 1 })) settings.disguise = 'google';
+    // Plain look and Movie night are gone; Plain look users get Night instead
+    if (settings.plain) settings.theme = 'night';
+    delete settings.plain;
+    delete settings.layout;
+    delete settings.dev;
+    if (!THEMES.includes(settings.theme)) settings.theme = 'notebook';
 
     function saveSettings() {
       try { localStorage.setItem(SETTINGS_STORE, JSON.stringify(settings)); } catch (e) {}
@@ -1380,7 +1376,7 @@
     };
 
     // Requests shows "Coming soon" instead of loading requests.html; set false to bring it back
-    const REQUESTS_SOON = true;
+    const REQUESTS_SOON = false;
 
     function buildQuick() {
       const apps = [
@@ -1531,11 +1527,11 @@
 
     // the Requests page follows this page's theme
     function lookParams() {
-      return 'theme=' + encodeURIComponent(settings.theme) + '&plain=' + (settings.plain ? '1' : '0');
+      return 'theme=' + encodeURIComponent(settings.theme);
     }
     function sendLook() {
       if (!requestsFrame) return;
-      try { requestsFrame.contentWindow.postMessage({ type: 'look', theme: settings.theme, plain: !!settings.plain }, location.origin); } catch (e) {}
+      try { requestsFrame.contentWindow.postMessage({ type: 'look', theme: settings.theme }, location.origin); } catch (e) {}
     }
 
     function showPanel(name) {
@@ -1582,18 +1578,15 @@
       $('nav-junk').hidden = !settings.junk;
       document.body.dataset.theme = THEMES.includes(settings.theme) ? settings.theme : 'notebook';
       sendLook();
-      document.body.classList.toggle('layout-movie', settings.layout === 'movie');
-      document.body.classList.toggle('plain', !!settings.plain);
       document.body.classList.toggle('rail-collapsed', settings.rail === 'collapsed');
       const railLabel = settings.rail === 'collapsed' ? 'Pin sidebar open' : 'Collapse sidebar';
       $('rail-toggle').title = railLabel;
       $('rail-toggle').setAttribute('aria-label', railLabel);
 
-      [['exp-home', 'home'], ['exp-plain', 'plain'], ['exp-junk', 'junk'], ['always-blank', 'alwaysBlank'], ['tide-remember', 'rememberTide']]
+      [['exp-home', 'home'], ['exp-junk', 'junk'], ['always-blank', 'alwaysBlank'], ['tide-remember', 'rememberTide']]
         .forEach(([id, key]) => $(id).setAttribute('aria-checked', String(!!settings[key])));
       showTideHint();
       document.querySelectorAll('#disguise-choice button').forEach((b) => b.classList.toggle('on', b.dataset.disguise === settings.disguise));
-      document.querySelectorAll('#layout-choice button').forEach((b) => b.classList.toggle('on', b.dataset.layout === settings.layout));
       document.querySelectorAll('#theme-choice button').forEach((b) => b.classList.toggle('on', b.dataset.themePick === settings.theme));
       applyDisguise();
     }
@@ -1611,7 +1604,6 @@
       if (settings.home) showPanel('home');
       else if ($('panel-home').classList.contains('active')) showPanel('games');
     });
-    $('exp-plain').addEventListener('click', () => change('plain', !settings.plain));
     $('exp-junk').addEventListener('click', () => {
       change('junk', !settings.junk);
       if (!settings.junk && $('panel-junk').classList.contains('active')) showPanel('games');
@@ -1636,7 +1628,6 @@
     });
     $('tide-forget').addEventListener('click', () => { forgetTideKey(); showTideHint(); });
     $('open-cloaked').addEventListener('click', openCloaked);
-    document.querySelectorAll('#layout-choice button').forEach((b) => b.addEventListener('click', () => change('layout', b.dataset.layout)));
     document.querySelectorAll('#theme-choice button').forEach((b) => b.addEventListener('click', () => change('theme', b.dataset.themePick)));
 
     function makeDisguiseButtons(container, after) {
@@ -1733,7 +1724,7 @@
 
     const SETUP_STEPS = [
       {
-        step: 'Welcome to v0.6',
+        step: 'Welcome',
         title: 'Let\u2019s set things up',
         text: 'There\u2019s new stuff, so everyone gets this once. About a minute: panic key, tab subject, look, Home, and a few extras. Everything can be changed later in Settings.',
         body: () => null,
@@ -1741,7 +1732,7 @@
         skip: 'Skip setup',
       },
       {
-        step: '1 of 6 \u00b7 Panic key',
+        step: '1 of 5 \u00b7 Panic key',
         title: 'Pick your panic key',
         text: 'Press it and this page turns into the ChalkBored homepage. It works inside games too. Click the key, then press the one you want.',
         body: () => {
@@ -1763,7 +1754,7 @@
         },
       },
       {
-        step: '2 of 6 \u00b7 Tab cloak',
+        step: '2 of 5 \u00b7 Tab cloak',
         title: 'Pick a subject',
         text: 'What should this tab look like? Games you open use the Google cloak unless you pick another from a game\u2019s menu.',
         body: () => {
@@ -1777,30 +1768,19 @@
         },
       },
       {
-        step: '3 of 6 \u00b7 Theme',
+        step: '3 of 5 \u00b7 Theme',
         title: 'Pick a theme',
-        text: 'Notebook is paper and pen. Chalkboard is dark green. Terminal is the original look. Try them: the page changes behind this box.',
-        body: () => makeChoice([['notebook', 'Notebook'], ['chalkboard', 'Chalkboard'], ['terminal', 'Terminal']], settings.theme, (k) => change('theme', k)),
+        text: 'Notebook is paper and pen. Chalkboard is dark green. Terminal is the original look. Night is soft and dark, easy on the eyes. Chat matches whatever you pick. Try them: the page changes behind this box.',
+        body: () => makeChoice([['notebook', 'Notebook'], ['chalkboard', 'Chalkboard'], ['terminal', 'Terminal'], ['night', 'Night']], settings.theme, (k) => change('theme', k)),
       },
       {
-        step: '4 of 6 \u00b7 Layout',
-        title: 'How should games be laid out?',
-        text: 'Default is a grid. Movie night puts them in one wide row you scroll sideways. Plain look turns everything into simple lists with no decoration.',
-        body: () => {
-          const box = document.createDocumentFragment();
-          box.appendChild(makeChoice([['default', 'Default'], ['movie', 'Movie night']], settings.layout, (k) => change('layout', k)));
-          box.appendChild(makeSwitch(settings.plain, 'Plain look', () => change('plain', !settings.plain)));
-          return box;
-        },
-      },
-      {
-        step: '5 of 6 \u00b7 Home',
+        step: '4 of 5 \u00b7 Home',
         title: 'Start on a Home screen?',
         text: 'Home shows what you opened last, buttons for every app, and a Surprise me button that picks a random game.',
         body: () => makeSwitch(settings.home, 'Home app', () => change('home', !settings.home)),
       },
       {
-        step: '6 of 6 \u00b7 Extras',
+        step: '5 of 5 \u00b7 Extras',
         title: 'Anything else?',
         text: 'Junk Drawer holds unfinished apps and the boring stuff. You can turn it on or off any time in Settings.',
         body: () => {
@@ -1843,7 +1823,7 @@
     function closeSetup() {
       setupEl.hidden = true;
       listeningFor = false;
-      settings.setupVersion = VERSION;
+      settings.setupVersion = SETUP_VERSION;
       change('setupDone', true);
     }
 
@@ -1878,7 +1858,7 @@
 
     if (!inCloakFrame()) {
       // everyone walks through the new setup once per big update
-      if (settings.setupVersion !== VERSION) openSetup();
+      if (settings.setupVersion !== SETUP_VERSION) openSetup();
       else if (seenVersion !== VERSION && returningVisitor) notesEl.hidden = false;
       else if (settings.alwaysBlank) cloakPrompt.hidden = false;
     }

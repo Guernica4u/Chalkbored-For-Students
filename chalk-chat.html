@@ -6,9 +6,11 @@
 <title>Chalk Chat</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
-  :root {
+  /* The chat follows the theme picked in ChalkBored (Settings -> Look).
+     Terminal is the default, and what you get with no ChalkBored settings. */
+  :root, body[data-theme="terminal"] {
     --bg: #0c0d10;
     --panel: #101216;
     --panel-2: #171b20;
@@ -18,7 +20,78 @@
     --accent: #6ee7a8;
     --accent-dim: #2f6b4f;
     --danger: #e8776d;
+    --sel: #12171a;          /* selected room / channel / tab */
+    --mine: #13201a;         /* your own messages */
+    --btn: #12211a;
+    --btn-hover: #16352a;
+    --flash: #1b3a2c;        /* message you jumped to */
+    --at-bg: rgba(110, 231, 168, 0.15);
+    --veil: rgba(5, 6, 8, 0.75);
+    --font: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+    color-scheme: dark;
   }
+  body[data-theme="notebook"] {
+    --bg: #fbfbf7;
+    --panel: #f1f2ec;
+    --panel-2: #ffffff;
+    --ink: #1f2d44;
+    --muted: #66708a;
+    --line: #d9dde4;
+    --accent: #2c5fb8;
+    --accent-dim: #9db4de;
+    --danger: #c0473a;
+    --sel: #e6edf9;
+    --mine: #eaf1fd;
+    --btn: #e6edf9;
+    --btn-hover: #d6e2f6;
+    --flash: #fff1a8;
+    --at-bg: #ffe680;
+    --veil: rgba(31, 45, 68, 0.35);
+    --font: 'Atkinson Hyperlegible', 'Segoe UI', system-ui, sans-serif;
+    color-scheme: light;
+  }
+  body[data-theme="chalkboard"] {
+    --bg: #1e2a25;
+    --panel: #19231f;
+    --panel-2: #26352f;
+    --ink: #eef0ea;
+    --muted: #9fb0a7;
+    --line: #34453d;
+    --accent: #f2d479;
+    --accent-dim: #8a7a45;
+    --danger: #f08c7e;
+    --sel: #2c3d35;
+    --mine: #2f3a2b;
+    --btn: #2f3a2b;
+    --btn-hover: #3b4833;
+    --flash: #4a4a2a;
+    --at-bg: rgba(242, 212, 121, 0.18);
+    --veil: rgba(10, 15, 12, 0.7);
+    --font: 'Atkinson Hyperlegible', 'Segoe UI', system-ui, sans-serif;
+    color-scheme: dark;
+  }
+  body[data-theme="night"] {
+    --bg: #16181d;
+    --panel: #14161a;
+    --panel-2: #1f232a;
+    --ink: #d9d5cc;
+    --muted: #8b909a;
+    --line: #2b3039;
+    --accent: #8fb3d9;
+    --accent-dim: #4b6480;
+    --danger: #d98b7f;
+    --sel: #232a34;
+    --mine: #1f2a36;
+    --btn: #22303f;
+    --btn-hover: #2a3a4c;
+    --flash: #2e3d50;
+    --at-bg: rgba(143, 179, 217, 0.16);
+    --veil: rgba(8, 9, 12, 0.7);
+    --font: 'Atkinson Hyperlegible', 'Segoe UI', system-ui, sans-serif;
+    color-scheme: dark;
+  }
+  /* the readable themes run a touch bigger than the monospace one */
+  body[data-theme="notebook"], body[data-theme="chalkboard"], body[data-theme="night"] { font-size: 17px; }
 
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; }
@@ -26,7 +99,7 @@
   body {
     background: var(--bg);
     color: var(--ink);
-    font-family: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+    font-family: var(--font);
     -webkit-font-smoothing: antialiased;
   }
 
@@ -92,7 +165,7 @@
   }
 
   .item:hover, .item:focus-visible { color: var(--ink); background: var(--panel-2); outline: none; }
-  .item.on { color: var(--accent); background: #12171a; border-left-color: var(--accent); }
+  .item.on { color: var(--accent); background: var(--sel); border-left-color: var(--accent); }
   .item .lock { margin-left: auto; font-size: 0.66rem; color: var(--muted); }
   .item .x {
     margin-left: auto;
@@ -193,7 +266,7 @@
     word-break: break-word;
   }
 
-  .row.mine .bubble { background: #13201a; border-color: var(--accent-dim); }
+  .row.mine .bubble { background: var(--mine); border-color: var(--accent-dim); }
 
   .kill {
     background: none;
@@ -276,7 +349,7 @@
   #text:disabled { color: var(--muted); }
 
   button.primary {
-    background: #12211a;
+    background: var(--btn);
     border: 1px solid var(--accent-dim);
     color: var(--accent);
     padding: 0.6rem 1.2rem;
@@ -284,7 +357,7 @@
     transition: background-color 0.2s ease;
   }
 
-  button.primary:hover { background: #16352a; }
+  button.primary:hover { background: var(--btn-hover); }
   button.primary:disabled { opacity: 0.4; cursor: default; }
 
   /* ---------------- sign in ---------------- */
@@ -346,7 +419,7 @@
     z-index: 8;
     display: grid;
     place-items: center;
-    background: rgba(5, 6, 8, 0.75);
+    background: var(--veil);
     padding: 2rem;
   }
 
@@ -382,7 +455,7 @@
     font-size: 0.66rem;
     cursor: pointer;
   }
-  .people-tabs button.on { color: var(--accent); border-color: var(--accent-dim); background: #12171a; }
+  .people-tabs button.on { color: var(--accent); border-color: var(--accent-dim); background: var(--sel); }
   #people-filter { background: var(--panel-2); border: 1px solid var(--line); color: var(--ink); font: inherit; font-size: 0.75rem; padding: 0.4rem 0.55rem; outline: none; }
   #people-filter:focus { border-color: var(--accent-dim); }
   #people-list { flex: 1; overflow-y: auto; padding: 0.3rem 0.4rem; }
@@ -425,10 +498,10 @@
     border-radius: 999px;
   }
   .at { color: var(--accent); }
-  .at.at-me { background: rgba(110, 231, 168, 0.15); padding: 0 0.15rem; }
+  .at.at-me { background: var(--at-bg); padding: 0 0.15rem; }
   .row.pinged .bubble { border-color: var(--accent); box-shadow: inset 2px 0 0 var(--accent); }
   .row.flash .bubble { animation: flash 1.8s ease; }
-  @keyframes flash { 0%, 45% { background: #1b3a2c; } }
+  @keyframes flash { 0%, 45% { background: var(--flash); } }
 
   .mn { display: block; width: 100%; color: inherit; font: inherit; text-align: left; cursor: pointer; }
   .mn:hover, .mn:focus-visible { border-color: var(--accent-dim); outline: none; }
@@ -463,7 +536,7 @@
     text-align: left;
     cursor: pointer;
   }
-  .suggest button.on, .suggest button:hover { background: #12171a; color: var(--accent); }
+  .suggest button.on, .suggest button:hover { background: var(--sel); color: var(--accent); }
   .suggest .ptag { color: var(--muted); }
 
   /* pop-up when someone @s you */
@@ -501,6 +574,24 @@
 </style>
 </head>
 <body>
+<script>
+  // match ChalkBored's theme (same browser storage the Notebook uses)
+  (function () {
+    const THEMES = ['notebook', 'chalkboard', 'terminal', 'night'];
+    function apply() {
+      let theme = 'terminal';
+      try {
+        const saved = JSON.parse(localStorage.getItem('vault-settings') || 'null');
+        if (saved && saved.plain) theme = 'night';
+        else if (saved && THEMES.includes(saved.theme)) theme = saved.theme;
+      } catch (e) {}
+      document.body.dataset.theme = theme;
+    }
+    apply();
+    // change the theme in ChalkBored and an open chat follows along
+    window.addEventListener('storage', (e) => { if (e.key === 'vault-settings') apply(); });
+  })();
+</script>
 
 <div class="app" id="app">
   <nav class="rail">

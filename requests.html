@@ -36,7 +36,14 @@
     --radius: 0;
     color-scheme: dark;
   }
-  body.plain { --hand: var(--body); --shadow: none; }
+  body[data-theme="night"] {
+    --paper: #16181d; --paper-2: #1f232a; --card: #1c1f26; --ink: #d9d5cc; --pencil: #8b909a;
+    --rule-line: #2b3039; --edge: #2b3039; --accent: #8fb3d9; --highlight: #2f4157; --highlight-ink: #e8e4db;
+    --danger: #d98b7f; --good: #8fcfa6;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 6px 18px rgba(0, 0, 0, 0.18);
+    --hand: var(--body);
+    color-scheme: dark;
+  }
 
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
@@ -68,7 +75,7 @@
   .btn { padding: 0.55rem 1.1rem; background: var(--paper-2); border: 1px solid var(--edge); border-radius: var(--radius); cursor: pointer; white-space: nowrap; }
   .btn:hover { border-color: var(--accent); }
   .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--card); font-weight: 700; }
-  body[data-theme="chalkboard"] .btn.primary, body[data-theme="terminal"] .btn.primary { color: var(--paper); }
+  body[data-theme="chalkboard"] .btn.primary, body[data-theme="terminal"] .btn.primary, body[data-theme="night"] .btn.primary { color: var(--paper); }
   .btn:disabled { opacity: 0.5; cursor: default; }
   .msg { min-height: 1.3em; margin: 0.5rem 0 0; font-size: 0.88rem; color: var(--danger); }
   .msg.ok { color: var(--good); }
@@ -181,15 +188,14 @@ const $ = (id) => document.getElementById(id);
 const state = { me: null, view: 'top', rows: [], mine: new Set() };
 
 // ---- theme: from the address first, then live updates from the notebook ----
-function applyLook(theme, plain) {
-  document.body.dataset.theme = ['notebook', 'chalkboard', 'terminal'].includes(theme) ? theme : 'notebook';
-  document.body.classList.toggle('plain', !!plain);
+function applyLook(theme) {
+  document.body.dataset.theme = ['notebook', 'chalkboard', 'terminal', 'night'].includes(theme) ? theme : 'notebook';
 }
 const q = new URLSearchParams(location.search);
-applyLook(q.get('theme'), q.get('plain') === '1');
+applyLook(q.get('theme'));
 window.addEventListener('message', (e) => {
   if (e.origin !== location.origin || !e.data || e.data.type !== 'look') return;
-  applyLook(e.data.theme, e.data.plain);
+  applyLook(e.data.theme);
 });
 
 // ---- signing in (same trick as the chat: usernames become hidden emails) ----
@@ -248,7 +254,7 @@ $('tabs').addEventListener('click', (e) => {
 async function load() {
   const [{ data, error }, votes] = await Promise.all([
     db.from('requests')
-      .select('id, title, reason, kind, status, hidden, votes, created_at, profiles(username)')
+      .select('id, user_id, title, reason, kind, status, hidden, votes, created_at, profiles(username)')
       .order('votes', { ascending: false })
       .order('created_at', { ascending: false })
       .limit(200),
@@ -326,7 +332,7 @@ function paint() {
       meta.appendChild(st);
     }
     const who = document.createElement('span');
-    who.textContent = 'by ' + ((r.profiles && r.profiles.username) || 'someone');
+    who.textContent = 'by ' + (!r.user_id ? 'ChalkBored' : (r.profiles && r.profiles.username) || 'someone');
     meta.appendChild(who);
     if (r.hidden) {
       const h = document.createElement('span');
