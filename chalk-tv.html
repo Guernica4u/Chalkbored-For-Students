@@ -256,7 +256,59 @@ function tvFrame(ctl) {
     const body = props.response.body;
     if (body instanceof ReadableStream) props.response.body = await new Response(body).arrayBuffer();
   });
+  keepInFrame(sf);
   return sf;
+}
+
+/* A page opened in a new tab or window would have nothing running the tide
+   behind it, and just shows an error. So links, buttons and forms that ask
+   for a new tab - and Ctrl-, Shift- or middle-clicks - open right here instead. */
+function keepInFrame(sf) {
+  const patch = () => {
+    let win, doc;
+    try { win = sf.element.contentWindow; doc = win.document; } catch (e) { return; }
+    if (!win || !doc || win.__tideKeep) return;
+    if (!String(win.location.href).startsWith(sf.context.prefix.href)) return;
+    win.__tideKeep = true;
+    /* the real address a link points at, however it is written */
+    const realUrl = raw => {
+      let url = null;
+      try {
+        const abs = new URL(String(raw), win.location.href).href;
+        url = abs.startsWith(sf.context.prefix.href)
+          ? $scramjet.unrewriteUrl(abs, sf.context)
+          : new URL(String(raw), $scramjet.unrewriteUrl(win.location.href, sf.context)).href;
+      } catch (e) { return null; }
+      return /^https?:/i.test(url) ? url : null;
+    };
+    const opensElsewhere = target => !!target && !/^_(self|parent|top)$/i.test(target);
+    win.open = function (url) {
+      const real = url === undefined || url === null || String(url) === "" ? null : realUrl(url);
+      if (real) sf.go(real);
+      return null;
+    };
+    const onClick = e => {
+      const a = e.target && e.target.closest && e.target.closest("a[href], area[href]");
+      if (!a) return;
+      const extra = e.type === "auxclick" ? e.button === 1 : (e.ctrlKey || e.metaKey || e.shiftKey);
+      if (!extra && !opensElsewhere(a.getAttribute("target"))) return;
+      const real = realUrl(a.getAttribute("href"));
+      if (!real) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      sf.go(real);
+    };
+    doc.addEventListener("click", onClick, true);
+    doc.addEventListener("auxclick", onClick, true);
+    doc.addEventListener("submit", e => {
+      const form = e.target;
+      const by = e.submitter;
+      if (by && opensElsewhere(by.getAttribute("formtarget"))) by.setAttribute("formtarget", "_self");
+      if (form && opensElsewhere(form.getAttribute("target"))) form.setAttribute("target", "_self");
+    }, true);
+  };
+  sf.element.addEventListener("load", patch);
+  setInterval(patch, 500);
 }
 
 /* Firefox cannot pass a stream between pages, so video mostly will not play */
