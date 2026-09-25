@@ -268,13 +268,13 @@ alter table public.channels     enable row level security;
 alter table public.messages     enable row level security;
 alter table public.app_config   enable row level security;
 
--- profiles: everyone signed in can see names; only you edit you
+-- profiles: everyone signed in can see names. Nobody edits profile rows
+-- directly (that used to let banned people unban themselves); the functions
+-- below make every change.
 drop policy if exists profiles_read on public.profiles;
 create policy profiles_read on public.profiles for select to authenticated using (true);
 
 drop policy if exists profiles_self on public.profiles;
-create policy profiles_self on public.profiles for update to authenticated
-  using (id = auth.uid()) with check (id = auth.uid() and is_mod = (select is_mod from profiles p where p.id = auth.uid()));
 
 -- rooms: every room is listed (that's how private ones show up locked).
 -- Making one goes through create_room, so no insert policy here.
@@ -358,7 +358,8 @@ where r.is_global and not exists (select 1 from public.channels c where c.room_i
 
 -- ---------------------------------------------------------------- last step
 -- Run this on its own, with your own password:
---   select public.set_mod_password('goop4u');
+--   select public.set_mod_password('your own long password');
+-- Never write the real password in this file: the repo is public.
 
 
 -- ---------------------------------------------------------------- backfill

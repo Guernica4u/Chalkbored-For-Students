@@ -699,7 +699,7 @@
 </div>
 
 <script type="module">
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.1/+esm';
 
 /* ------------------------------------------------------------------ setup
    Paste your project's two public values here. Both are safe in a public
@@ -1745,7 +1745,12 @@ async function start() {
 
   // opened from a mention alert: chalk-chat.html?room=…&channel=…&msg=…
   const link = new URLSearchParams(location.search);
-  if (link.get('room')) jumpTo(link.get('room'), link.get('channel'), link.get('msg'));
+  // only accept real ids from the address bar
+  const uuid = /^[0-9a-f-]{36}$/i;
+  const roomId = link.get('room'), channelId = link.get('channel'), msgId = link.get('msg');
+  if (uuid.test(roomId || '') && (!channelId || uuid.test(channelId)) && (!msgId || /^\d+$/.test(msgId))) {
+    jumpTo(roomId, channelId, msgId);
+  }
 
   // rooms and channels appearing or vanishing for everyone
   db.channel('structure')

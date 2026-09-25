@@ -949,6 +949,7 @@
         { name: 'Retro Bowl',      path: 'GAMES/rb-main/index.html' },
         { name: 'Escape Road',     path: 'GAMES/Learn-Car-Maintenance/index.html' },
         { name: 'Slope',           path: 'GAMES/Slope-main/Slope-main/index.html' },
+        { name: 'Cookie Clicker',  path: 'GAMES/culinary/index.html' },
       ],
       tools: [
         { name: 'Chalk OS', path: 'TOOLS/CHALK-OS/index.html',
@@ -956,6 +957,7 @@
       ],
       // Junk Drawer: unfinished apps and the boring stuff. Same shape as games.
       junk: [
+        { name: 'Glass Box', path: 'JUNK-DRAWER/index.html' },
       ],
     };
 
@@ -1879,7 +1881,7 @@
     if (signedIn) watchPings().catch(() => {});
 
     async function watchPings() {
-      const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+      const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.1/+esm');
       const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
       const { data: { user } } = await db.auth.getUser();
       if (!user) return;
