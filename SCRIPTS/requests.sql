@@ -52,6 +52,9 @@ returns boolean language sql stable security definer set search_path = public, e
   );
 $$;
 
+-- only the functions below use it; the site can't test words against the list
+revoke all on function public.has_blocked_word(text) from public, anon, authenticated;
+
 -- ---------------------------------------------------------------- actions
 
 -- Suggest something. Returns null when it worked, or a short reason when not.

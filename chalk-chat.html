@@ -610,7 +610,6 @@
       <button class="link" id="become-mod" type="button">Moderator login</button>
       <button class="link" id="open-reports" type="button" hidden>Reports</button>
       <button class="link" id="mod-tools" type="button" hidden>Ban / unban someone</button>
-      <button class="link" id="word-list" type="button" hidden>Blocked words</button>
       <button class="link" id="room-mods" type="button" hidden>Add a room mod</button>
       <button class="link" id="desk-alerts" type="button">Desktop alerts: off</button>
       <button class="link" id="sign-out" type="button">Sign out</button>
@@ -1142,7 +1141,6 @@ function paintMe() {
   $('me-name').textContent = state.me.username;
   $('me-tag').hidden = !state.me.is_mod;
   $('mod-tools').hidden = !state.me.is_mod;
-  $('word-list').hidden = !state.me.is_mod;
   $('become-mod').hidden = state.me.is_mod;
   $('open-reports').hidden = !runsSomething();
 }
@@ -1293,22 +1291,7 @@ function watchReports() {
     .subscribe();
 }
 
-// ------------------------------------------------------------------ blocked words
-$('word-list').onclick = async () => {
-  const { data } = await db.from('blocked_words').select('word').order('word');
-  const words = (data || []).map((w) => w.word);
-  const answer = await ask({
-    title: 'Blocked words',
-    text: (words.length ? 'On the list: ' + words.join(', ') + '.' : 'The list is empty.') +
-          ' Auto mod blocks messages with these as whole words, and catches swaps like 3 for e.',
-    placeholder: 'Word to add',
-    check: 'Remove it instead',
-  });
-  if (!answer || !answer.one) return;
-  const { data: msg, error } = await db.rpc('set_blocked_word', { p_word: answer.one, p_add: !answer.checked });
-  if (error || msg) alert(error ? error.message : msg);
-  else $('word-list').click();
-};
+// the blocked words list is managed in Supabase only; it never reaches the site
 
 // ------------------------------------------------------------------ @names in messages
 // same pattern the database uses, so what's highlighted is what pings

@@ -6,7 +6,8 @@
 --   slow down    more than 5 messages in 10 seconds
 --   repeat       the same message twice in a row within a minute
 --   spam         one character repeated 15+ times ("aaaaaaaaaaaaaaaa")
---   blocked word anything on the blocked words list (mods manage it in the chat)
+--   blocked word anything on the blocked words list (kept in Supabase only: edit
+--                the blocked_words table in the Table Editor; the site can't read it)
 -- Each block is a strike. 3 strikes in 10 minutes = 10 minute timeout, and the
 -- timeout shows up in the reports queue so mods can see it.
 --
@@ -201,6 +202,7 @@ end; $$;
 
 -- ---------------------------------------------------------------- blocked words
 
+-- (no longer used by the site: the list is edited in Supabase only)
 create or replace function public.set_blocked_word(p_word text, p_add boolean)
 returns text language plpgsql security definer set search_path = public, extensions as $$
 declare w text := lower(btrim(coalesce(p_word, '')));
@@ -222,10 +224,11 @@ alter table public.blocked_words   enable row level security;
 alter table public.automod_strikes enable row level security;
 alter table public.reports         enable row level security;
 
--- only site mods can see the word list; strikes have no policies (functions only)
+-- nobody can read the word list through the site (not even mods), and nobody
+-- can change it through the site: it's edited in Supabase only.
+-- strikes have no policies either (functions only)
 drop policy if exists blocked_words_read on public.blocked_words;
-create policy blocked_words_read on public.blocked_words for select to authenticated
-  using (is_site_mod());
+revoke all on function public.set_blocked_word(text, boolean) from public, anon, authenticated;
 
 -- reports: site mods see all, room owners/mods see their room's
 drop policy if exists reports_read on public.reports;
