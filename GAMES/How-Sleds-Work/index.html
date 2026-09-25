@@ -26,6 +26,20 @@
     <link rel="icon" href="TemplateData/favicon.ico">
     <link rel="stylesheet" href="TemplateData/style.css">
     
+    <!-- ChalkBored: this game's leftover ad code opens new tabs (ads) when you
+         crash. The game itself never needs a new tab, so opening one is switched off. -->
+    <script>
+        (function () {
+            var none = function () { return null; };
+            try { window.open = none; } catch (e) {}
+            try { if (window.top !== window) window.top.open = none; } catch (e) {}
+            document.addEventListener('click', function (e) {
+                var a = e.target && e.target.closest && e.target.closest('a[target]');
+                if (a && a.target !== '_self') { e.preventDefault(); e.stopPropagation(); }
+            }, true);
+        })();
+    </script>
+
     <!-- Unity game scripts -->
     <script src="TemplateData/UnityProgress.js"></script>
     <script src="Build/UnityLoader.js"></script>

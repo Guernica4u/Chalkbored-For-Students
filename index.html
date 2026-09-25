@@ -527,14 +527,14 @@
       enterArcade('notebook.html');
     });
 
-    // typing "bored" anywhere on the page opens study hall
+    // typing "bored" anywhere on the page opens the notebook too
     const WORD = 'bored';
     let typed = '';
     document.addEventListener('keydown', (e) => {
       if (e.target.closest && e.target.closest('input, textarea, [contenteditable="true"]')) return;
       if (e.key.length !== 1) return;
       typed = (typed + e.key.toLowerCase()).slice(-WORD.length);
-      if (typed === WORD) { typed = ''; enterArcade('study-hall.html'); }
+      if (typed === WORD) { typed = ''; enterArcade('notebook.html'); }
     });
 
     // ...and for anyone who tries the old code

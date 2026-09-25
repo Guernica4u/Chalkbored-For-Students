@@ -874,6 +874,15 @@
             </div>
 
             <div class="group">
+              <h2>Advanced</h2>
+              <p>How games and other tabs opened from here behave.</p>
+              <div class="setting">
+                <div><h3>Block new tabs from games</h3><p>Stops anything opened from here (games, tools, Junk Drawer) from opening more tabs or pop-ups, like the ads some games open when you lose. Chat isn't affected.</p></div>
+                <button class="switch" id="adv-popups" type="button" role="switch" aria-checked="true" aria-label="Block new tabs from games"></button>
+              </div>
+            </div>
+
+            <div class="group">
               <h2>Setup</h2>
               <div class="setting">
                 <div><h3>First-time setup</h3><p>Walk through panic key, subject, look and Home again.</p></div>
@@ -952,7 +961,7 @@
         { name: 'Cookie Clicker',  path: 'GAMES/culinary/index.html' },
       ],
       tools: [
-        { name: 'Chalk OS', path: 'TOOLS/CHALK-OS/index.html',
+        { name: 'Chalk OS', path: 'CHALK-OS/index.html',
           desc: 'A desktop in your browser: windows, apps and a taskbar, all in one tab.' },
       ],
       // Junk Drawer: unfinished apps and the boring stuff. Same shape as games.
@@ -976,6 +985,7 @@
     const DEFAULT_SETTINGS = {
       home: false, junk: false, rail: 'open',
       disguise: 'google', alwaysBlank: false, setupDone: false, setupVersion: '', theme: 'notebook', rememberTide: false,
+      blockPopups: true,
     };
     let settings = Object.assign({}, DEFAULT_SETTINGS);
     let savedSettings = null;
@@ -1073,16 +1083,33 @@
       }, true);
     }
 
+    // Stop a window we opened from opening more tabs: no window.open, and links
+    // that try to open elsewhere do nothing. Safe to call more than once.
+    function noNewTabs(w) {
+      try {
+        if (!w || w.__chalkNoTabs) return;
+        w.__chalkNoTabs = true;
+        w.open = function () { return null; };
+        w.document.addEventListener('click', (e) => {
+          const a = e.target && e.target.closest && e.target.closest('a[target], form[target]');
+          if (a && a.target && a.target !== '_self') { e.preventDefault(); e.stopPropagation(); }
+        }, true);
+      } catch (e) { /* cross-origin page: can't reach it */ }
+    }
+
     // Games are same-origin pages, so the key still reaches us inside them.
-    function armWindow(win) {
+    function armWindow(win, blockTabs) {
       if (!win) return;
       const attach = () => {
         try {
           armPanic(win.document, () => panicFromGame(win));
+          if (blockTabs) noNewTabs(win);
           win.document.querySelectorAll('iframe').forEach((f) => {
             try { armPanic(f.contentDocument, () => panicFromGame(win)); } catch (e) {}
+            if (blockTabs) noNewTabs(f.contentWindow);
             f.addEventListener('load', () => {
               try { armPanic(f.contentDocument, () => panicFromGame(win)); } catch (e) {}
+              if (blockTabs) noNewTabs(f.contentWindow);
             });
           });
         } catch (e) { /* cross-origin page: the key can't be seen there */ }
@@ -1179,12 +1206,17 @@
       ['normal', 'Normal tab'],
     ];
 
-    function openTab(url, mode) {
+    // Sandbox rules for cloaked tabs when new tabs are blocked: everything a game
+    // needs, but no pop-ups and no taking over the tab.
+    const NO_POPUPS_SANDBOX = 'allow-scripts allow-same-origin allow-forms allow-modals allow-pointer-lock allow-downloads allow-orientation-lock allow-presentation';
+
+    function openTab(url, mode, opts) {
       // resolve against this page so relative paths still work inside the about:blank window
       const fullUrl = new URL(url, window.location.href).href;
+      const blockTabs = !!settings.blockPopups && !(opts && opts.allowTabs);
 
       if (mode === 'normal') {
-        armWindow(window.open(fullUrl, '_blank'));
+        armWindow(window.open(fullUrl, '_blank'), blockTabs);
         return;
       }
 
@@ -1207,11 +1239,15 @@
       iframe.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;border:none;';
       iframe.setAttribute('allow', 'fullscreen; autoplay; clipboard-read; clipboard-write');
       iframe.setAttribute('allowfullscreen', '');
+      if (blockTabs) {
+        iframe.setAttribute('sandbox', NO_POPUPS_SANDBOX);
+        noNewTabs(win);   // the blank wrapper tab can't open tabs either
+      }
       doc.body.appendChild(iframe);
 
       // some browsers reset the title once the blank page settles
       setTimeout(() => { doc.title = look.title; }, 100);
-      armWindow(win);
+      armWindow(win, blockTabs);
       win.focus();
     }
 
@@ -1565,7 +1601,7 @@
 
     // chat lives in its own tab, cloaked like a game
     const CHAT_PATH = 'chalk-chat.html';
-    function openChat(query) { openTab(CHAT_PATH + (query || ''), DEFAULT_CLOAK); }
+    function openChat(query) { openTab(CHAT_PATH + (query || ''), DEFAULT_CLOAK, { allowTabs: true }); }
     $('open-chat').addEventListener('click', () => openChat());
 
     // Chalk TV too; it hands key presses from the tide frame up to its own page,
@@ -1585,7 +1621,7 @@
       $('rail-toggle').title = railLabel;
       $('rail-toggle').setAttribute('aria-label', railLabel);
 
-      [['exp-home', 'home'], ['exp-junk', 'junk'], ['always-blank', 'alwaysBlank'], ['tide-remember', 'rememberTide']]
+      [['exp-home', 'home'], ['exp-junk', 'junk'], ['always-blank', 'alwaysBlank'], ['tide-remember', 'rememberTide'], ['adv-popups', 'blockPopups']]
         .forEach(([id, key]) => $(id).setAttribute('aria-checked', String(!!settings[key])));
       showTideHint();
       document.querySelectorAll('#disguise-choice button').forEach((b) => b.classList.toggle('on', b.dataset.disguise === settings.disguise));
@@ -1611,6 +1647,7 @@
       if (!settings.junk && $('panel-junk').classList.contains('active')) showPanel('games');
     });
     $('always-blank').addEventListener('click', () => change('alwaysBlank', !settings.alwaysBlank));
+    $('adv-popups').addEventListener('click', () => change('blockPopups', !settings.blockPopups));
 
     // ---- tide key (Chalk TV reads the setting and keeps the key under this name) ----
     const TIDE_KEY_STORE = 'chalk-tv.tide';
@@ -1784,10 +1821,11 @@
       {
         step: '5 of 5 \u00b7 Extras',
         title: 'Anything else?',
-        text: 'Junk Drawer holds unfinished apps and the boring stuff. You can turn it on or off any time in Settings.',
+        text: 'Junk Drawer holds unfinished apps and the boring stuff. Blocking new tabs stops games from opening ads in other tabs. Both can be changed any time in Settings.',
         body: () => {
           const box = document.createDocumentFragment();
           box.appendChild(makeSwitch(settings.junk, 'Junk Drawer', () => change('junk', !settings.junk)));
+          box.appendChild(makeSwitch(settings.blockPopups, 'Block new tabs from games', () => change('blockPopups', !settings.blockPopups)));
           return box;
         },
       },
