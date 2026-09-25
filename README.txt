@@ -5,6 +5,9 @@ Scroll down to the bottom and press the middle dot in chalkbored ' for students 
 
 
 ALL LINKS:
+
+JUST CHALK OS (no games): https://chalk-os.guernica4u.workers.dev/
+
 CLOUDFLARE: chalkbored.win, https://chalkbored.guernica4u.workers.dev/
 
 VERCEL: https://chalkbored-for-students.vercel.app/
