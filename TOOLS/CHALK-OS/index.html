@@ -474,6 +474,10 @@ body.anim .win.closing{animation:winOut .15s ease-in forwards}
 .ws-row .d{font-size:11.5px;color:var(--dim);flex:0 0 auto}
 .ws-foot{max-width:640px;margin:34px auto 0;text-align:center;font-size:12px;color:var(--dim)}
 
+/* ---------- games: when there are none ---------- */
+.gm-empty{line-height:1.7;max-width:460px;margin:40px auto;text-align:center}
+.gm-link{border:0;background:none;padding:0;color:var(--accent);font:inherit;cursor:pointer;text-decoration:underline;text-underline-offset:3px;word-break:break-all}
+
 /* ---------- files ---------- */
 .fm-trash{display:none;flex:1;min-width:0;flex-direction:column;background:var(--surface)}
 .fm-trash .fm-list{flex:1}
@@ -10668,7 +10672,7 @@ const HELP_TOPICS = [
            "Browsers only give full screen after a click, so until then the bar at the top offers it."]],
     ["h", "Adding your own"],
     ["p", "Add a game, at the top of Games, is the quick way: a game on a website by its address, or an .html file from Files or from this computer. Games run from SEA OS's own site - one that lives elsewhere is brought over and started here - and none of them can open a tab in your real browser: a link a game opens goes to Seahorse instead. Files go into ~/Games, links are kept in your settings, and nothing needs uploading anywhere. Right-click one you added to take it out again."],
-    ["p", "A game can also be one HTML file in the games/ folder of the repository. It turns up in Games named after its file, and runs as a page of its own with its own storage, so games that save - Eaglercraft's worlds, say - keep what they save."],
+    ["p", "A game can also be one HTML file in the games/ folder of the repository. It turns up in Games named after its file, and runs as a page of its own with its own storage, so games that save keep what they save."],
     ["p", "A game added through Add a game into ~/Games is read like a Store app instead, so it can carry these tags:"],
     ["c", "<title>My Game</title>\n<meta name=\"description\" content=\"What you do\">\n<meta name=\"box-icon\" content=\"🎯\">\n<meta name=\"box-color\" content=\"#3a7bd5\">\n<meta name=\"box-size\" content=\"520x600\">"],
     ["p", "Those games get the same window.box as apps, plus two calls for scores. Higher is better:"],
@@ -11954,11 +11958,8 @@ async function gameExtras(){
    way a game that saves needs to, and is named after its file - never after
    its <title>, which some games dress up as something else entirely. The page
    is not fetched just to be listed, so a 20 MB game costs nothing until it
-   is played. A few games are known by name and get their proper details. */
-const KNOWN_GAMES = {
-  eaglercraft: { name: "Eaglercraft", icon: "\u26CF\uFE0F", color: "#5b8731",
-                 desc: "Minecraft 1.5.2 in the browser - worlds are kept in this browser", w: 1100, h: 700 }
-};
+   is played. A game known by name can be given its proper details here. */
+const KNOWN_GAMES = {};
 async function discoverGameFiles(skip){
   let paths = null;
   const names = await repoList("games");
@@ -12285,6 +12286,21 @@ function gamesApp(win){
     list.forEach(g => grid.appendChild(tile(g)));
     body.appendChild(grid);
     if (loading && !gamesCatalogue) body.appendChild(el("div", "st-none", "Looking in games/…"));
+    else if (!all.length){
+      /* nothing in games/ and nothing added: point to where the games are */
+      const none = el("div", "st-none gm-empty");
+      const link = (text, url) => {
+        const a = el("button", "gm-link", text);
+        a.title = url;
+        a.onclick = () => openInBrowser(url);
+        return a;
+      };
+      none.append(document.createTextNode("No games yet, go to "), link("chalkbored.win", "https://chalkbored.win"),
+                  document.createTextNode(" for some ("),
+                  link("https://github.com/Guernica4u/Chalkbored-For-Students", "https://github.com/Guernica4u/Chalkbored-For-Students"),
+                  document.createTextNode(" for more links)"));
+      body.appendChild(none);
+    }
     else if (!list.length) body.appendChild(el("div", "st-none", "Nothing matches that."));
 
     const how = el("div", "st-how");
@@ -12292,12 +12308,13 @@ function gamesApp(win){
       el("h3", "st-h", "Adding a game"),
       el("p", null, "Add a game, at the top, takes a game on a website by its address, or an .html file - " +
                     "from Files or from this computer. They are kept in SEA OS itself, and nothing needs uploading."),
-      el("p", null, "An .html game can also go in the games/ folder of the repository. Name it with these tags " +
-                    "and it shows up here:"),
+      el("p", null, "An .html game can also go in the games/ folder of the repository. It shows up here named " +
+                    "after its file, and runs as a page of its own, so games that save keep what they save."),
+      el("p", null, "A game you add yourself can carry these tags for its name, icon, colour and size:"),
       el("pre", "hp-code", '<title>My Game</title>\n<meta name="description" content="What you do">\n' +
                            '<meta name="box-icon" content="🎯">\n<meta name="box-color" content="#3a7bd5">\n' +
                            '<meta name="box-size" content="520x600">'),
-      el("p", null, "Scores go through box.getHighScore() and box.submitScore(score). Help › Games has the rest."));
+      el("p", null, "Those games keep scores with box.getHighScore() and box.submitScore(score). Help › Games has the rest."));
     body.appendChild(how);
   }
   async function refresh(){
