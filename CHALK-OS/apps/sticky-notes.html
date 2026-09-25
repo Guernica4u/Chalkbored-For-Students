@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Sticky Notes</title>
+<meta name="description" content="Quick notes that are still there next time">
+<meta name="box-icon" content="🗒️">
+<meta name="box-size" content="560x460">
+<style>
+  :root {
+    --box-bg: #1e1e1e; --box-surface: #262626; --box-surface-2: #2e2e2e;
+    --box-text: #e6e6e6; --box-dim: #9a9a9a; --box-accent: #8bae5a; --box-accent-fg: #10140c; --box-border: #3a3a3a;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font: 14px/1.45 "Segoe UI", -apple-system, system-ui, sans-serif;
+    background: var(--box-surface); color: var(--box-text);
+    display: flex; flex-direction: column;
+  }
+  header { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-bottom: 1px solid var(--box-border); background: var(--box-surface-2); }
+  header span { flex: 1; color: var(--box-dim); font-size: 12px; }
+  button { font: inherit; border: 1px solid var(--box-border); background: var(--box-surface); color: var(--box-text); border-radius: 5px; padding: 4px 11px; cursor: pointer; }
+  button.add { background: var(--box-accent); border-color: var(--box-accent); color: var(--box-accent-fg); font-weight: 600; }
+  main { flex: 1; overflow: auto; padding: 14px; display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); align-content: start; }
+  .note { position: relative; min-height: 130px; border-radius: 6px; padding: 10px 10px 8px; box-shadow: 0 2px 6px rgba(0,0,0,.25); display: flex; flex-direction: column; color: #2a2616; }
+  .note textarea { flex: 1; resize: none; border: 0; outline: none; background: transparent; font: inherit; color: inherit; }
+  .note .x { position: absolute; top: 3px; right: 4px; border: 0; background: transparent; color: rgba(0,0,0,.45); padding: 0 5px; font-size: 16px; }
+  .note .x:hover { color: rgba(0,0,0,.8); }
+  .empty { grid-column: 1 / -1; text-align: center; color: var(--box-dim); padding: 50px 10px; }
+</style>
+</head>
+<body>
+<header>
+  <button class="add" id="add">+ Note</button>
+  <span id="status">Loading…</span>
+</header>
+<main id="board"></main>
+<script>
+  const colours = ["#f6e58d", "#ffbe76", "#badc58", "#7ed6df", "#e0a6f2"];
+  const board = document.getElementById("board");
+  const status = document.getElementById("status");
+  let notes = [];
+  let timer = 0;
+
+  function draw() {
+    board.innerHTML = "";
+    if (!notes.length) {
+      board.innerHTML = '<div class="empty">No notes yet. Press + Note to write one.</div>';
+      return;
+    }
+    notes.forEach((n, i) => {
+      const card = document.createElement("div");
+      card.className = "note";
+      card.style.background = n.colour;
+      const text = document.createElement("textarea");
+      text.value = n.text;
+      text.placeholder = "Write something…";
+      text.oninput = () => { n.text = text.value; saveSoon(); };
+      const x = document.createElement("button");
+      x.className = "x";
+      x.textContent = "×";
+      x.title = "Delete note";
+      x.onclick = () => { notes.splice(i, 1); draw(); saveSoon(); };
+      card.append(x, text);
+      board.appendChild(card);
+    });
+  }
+  function saveSoon() {
+    status.textContent = "Saving…";
+    clearTimeout(timer);
+    timer = setTimeout(save, 600);
+  }
+  async function save() {
+    if (!window.box) { status.textContent = "Open this inside SEA OS to keep your notes."; return; }
+    try {
+      const where = await box.saveFile("notes.json", notes);
+      status.textContent = "Saved to " + where;
+    } catch (e) {
+      status.textContent = "Could not save: " + e.message;
+    }
+  }
+  document.getElementById("add").onclick = () => {
+    notes.push({ text: "", colour: colours[notes.length % colours.length] });
+    draw();
+    board.lastElementChild.querySelector("textarea").focus();
+    saveSoon();
+  };
+
+  (async () => {
+    if (!window.box) { status.textContent = "Open this inside SEA OS to keep your notes."; draw(); return; }
+    try {
+      const saved = await box.readFile("notes.json");
+      notes = saved ? JSON.parse(saved) : [];
+      status.textContent = notes.length ? notes.length + " note" + (notes.length === 1 ? "" : "s") : "Nothing saved yet";
+    } catch (e) {
+      status.textContent = "Could not read your notes: " + e.message;
+    }
+    draw();
+  })();
+</script>
+</body>
+</html>
