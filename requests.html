@@ -79,6 +79,7 @@
   .btn:disabled { opacity: 0.5; cursor: default; }
   .msg { min-height: 1.3em; margin: 0.5rem 0 0; font-size: 0.88rem; color: var(--danger); }
   .msg.ok { color: var(--good); }
+  .link-btn { background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; font-size: inherit; }
   .small { font-size: 0.85rem; color: var(--pencil); }
 
   .tabs { display: flex; flex-wrap: wrap; gap: 0.35rem; }
@@ -123,13 +124,64 @@
   .mod { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-left: auto; }
   .mod select, .mod button { padding: 0.15rem 0.45rem; font-size: 0.78rem; background: var(--paper-2); border: 1px solid var(--edge); border-radius: 4px; cursor: pointer; }
   .empty { font-family: var(--hand); font-size: 1.1rem; color: var(--pencil); }
+
+  /* ---------------- the poll ---------------- */
+  .poll { display: flex; flex-direction: column; gap: 0.7rem; }
+  .opt-wrap { display: flex; flex-direction: column; gap: 0.3rem; }
+  .opt {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1.3rem minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.9rem;
+    width: 100%;
+    padding: 0.95rem 1.05rem;
+    background: var(--card);
+    border: 1px solid var(--edge);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    text-align: left;
+    cursor: pointer;
+    overflow: hidden;
+    transition: border-color 0.15s ease, transform 0.15s ease;
+  }
+  .opt:hover { border-color: var(--accent); }
+  .opt:active { transform: scale(0.995); }
+  .opt:disabled { cursor: default; }
+  .opt > * { position: relative; z-index: 1; }
+  .opt .bar {
+    position: absolute;
+    inset: 0 auto 0 0;
+    z-index: 0;
+    width: 0;
+    background: var(--highlight);
+    opacity: 0.35;
+    transition: width 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .opt.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .opt.on .bar { opacity: 0.55; }
+  .radio { width: 1.15rem; height: 1.15rem; border: 2px solid var(--edge); border-radius: 50%; }
+  .opt.on .radio { border-color: var(--accent); background: radial-gradient(circle, var(--accent) 0 42%, transparent 46%); }
+  .opt-title { font-weight: 700; overflow-wrap: anywhere; }
+  .opt-reason { display: block; margin-top: 0.1rem; color: var(--pencil); font-size: 0.88rem; font-weight: 400; overflow-wrap: anywhere; }
+  .opt-count { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .opt-count b { display: block; font-size: 1.05rem; }
+  .opt-count span { color: var(--pencil); font-size: 0.78rem; }
+  .opt-tags { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.35rem; }
+  .opt-tags .chip { font-weight: 400; }
+  .mod-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; padding-left: 0.2rem; font-size: 0.78rem; color: var(--pencil); }
+  .mod-row select, .mod-row button { padding: 0.15rem 0.45rem; font-size: 0.78rem; background: var(--paper-2); border: 1px solid var(--edge); border-radius: 4px; cursor: pointer; }
+  .poll-foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.5rem; color: var(--pencil); font-size: 0.85rem; }
+  .sub { margin: 0.4rem 0 0.5rem; font-family: var(--hand); font-size: 1.15rem; color: var(--pencil); font-weight: 400; }
+  .done { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+  .done .chip { padding: 0.2rem 0.65rem; font-size: 0.85rem; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <header class="intro">
     <h2>What should we add next?</h2>
-    <p>Suggest a game or a feature, and vote for the ones you want. The most-voted ideas get looked at first. You need a Chalk Chat account to post or vote.</p>
+    <p>Pick one. You can change your pick any time, and the most-voted option gets looked at first. You need a Chalk Chat account to vote.</p>
   </header>
 
   <!-- signed out -->
@@ -144,12 +196,25 @@
     <p class="msg" id="signin-msg"></p>
   </section>
 
-  <!-- signed in -->
+  <!-- the poll -->
+  <section class="poll" id="poll" aria-label="Poll options"><p class="empty">Loading…</p></section>
+  <p class="msg" id="poll-msg" role="status"></p>
+  <div class="poll-foot" id="poll-foot" hidden>
+    <span id="poll-total"></span>
+    <span>Voting as <b id="me-name">—</b> · <button class="link-btn" id="sign-out" type="button">sign out</button></span>
+  </div>
+
+  <section id="done-wrap" hidden>
+    <h3 class="sub">Already added thanks to votes</h3>
+    <div class="done" id="done"></div>
+  </section>
+
+  <!-- moderators add the options -->
   <section class="box" id="suggest" hidden>
-    <h3>Suggest something</h3>
+    <h3>Add a poll option (moderators)</h3>
     <form id="suggest-form" autocomplete="off">
       <div class="row">
-        <input class="field" id="title" maxlength="60" placeholder="What is it? e.g. Slope, Cookie Clicker, dark mode" required>
+        <input class="field" id="title" maxlength="60" placeholder="Option name, e.g. Geometry Dash" required>
         <select class="field" id="kind" aria-label="Type">
           <option value="game">Game</option>
           <option value="feature">Feature</option>
@@ -157,22 +222,12 @@
         </select>
       </div>
       <div class="row" style="margin-top:0.6rem">
-        <input class="field" id="reason" maxlength="140" placeholder="Why? (optional)">
-        <button class="btn primary" type="submit">Post it</button>
+        <input class="field" id="reason" maxlength="140" placeholder="One line about it (optional)">
+        <button class="btn primary" type="submit">Add option</button>
       </div>
     </form>
     <p class="msg" id="suggest-msg"></p>
-    <p class="small">Signed in as <b id="me-name">—</b>. <button class="btn" id="sign-out" type="button" style="padding:0.1rem 0.5rem;font-size:0.8rem">Sign out</button></p>
   </section>
-
-  <div class="tabs" id="tabs" role="tablist">
-    <button type="button" data-view="top" class="on">Top</button>
-    <button type="button" data-view="new">New</button>
-    <button type="button" data-view="planned">Planned</button>
-    <button type="button" data-view="added">Added</button>
-  </div>
-
-  <div class="list" id="list"><p class="empty">Loading…</p></div>
 </div>
 
 <script type="module">
@@ -185,7 +240,7 @@ const MAIL_DOMAIN = 'users.chalkbored.win';
 const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const $ = (id) => document.getElementById(id);
-const state = { me: null, view: 'top', rows: [], mine: new Set() };
+const state = { me: null, rows: [], mine: new Set() };
 
 // ---- theme: from the address first, then live updates from the notebook ----
 function applyLook(theme) {
@@ -223,7 +278,9 @@ $('register').onclick = () => signIn('register');
 $('p').addEventListener('keydown', (e) => { if (e.key === 'Enter') signIn('login'); });
 $('sign-out').onclick = async () => { await db.auth.signOut(); location.reload(); };
 
-// ---- posting ----
+const SETUP_HINT = 'The poll isn\u2019t set up yet. Run SCRIPTS/requests-poll.sql in Supabase.';
+
+// ---- moderators add options ----
 $('suggest-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const msg = $('suggest-msg');
@@ -231,39 +288,26 @@ $('suggest-form').addEventListener('submit', async (e) => {
   const { data: why, error } = await db.rpc('submit_request', {
     p_title: $('title').value, p_reason: $('reason').value, p_kind: $('kind').value,
   });
-  if (error || why) {
-    msg.textContent = error ? (error.message.includes('submit_request') ? 'Requests aren’t set up yet. Run SCRIPTS/requests.sql in Supabase.' : error.message) : why;
-    return;
-  }
+  if (error || why) { msg.textContent = error ? error.message : why; return; }
   msg.className = 'msg ok';
-  msg.textContent = 'Posted. Your vote is already on it.';
+  msg.textContent = 'Added to the poll.';
   $('title').value = '';
   $('reason').value = '';
   await load();
 });
 
-// ---- the list ----
-$('tabs').addEventListener('click', (e) => {
-  const b = e.target.closest('button[data-view]');
-  if (!b) return;
-  state.view = b.dataset.view;
-  document.querySelectorAll('#tabs button').forEach((x) => x.classList.toggle('on', x === b));
-  paint();
-});
-
+// ---- the poll ----
 async function load() {
   const [{ data, error }, votes] = await Promise.all([
     db.from('requests')
-      .select('id, user_id, title, reason, kind, status, hidden, votes, created_at, profiles(username)')
-      .order('votes', { ascending: false })
-      .order('created_at', { ascending: false })
+      .select('id, title, reason, kind, status, hidden, votes, created_at')
+      .order('created_at', { ascending: true })
       .limit(200),
     db.from('request_votes').select('request_id').eq('user_id', state.me.id),
   ]);
   if (error) {
-    $('list').innerHTML = '<p class="empty"></p>';
-    $('list').firstChild.textContent = /requests|schema/.test(error.message)
-      ? 'Requests aren’t set up yet. Run SCRIPTS/requests.sql in Supabase.' : error.message;
+    $('poll').innerHTML = '<p class="empty"></p>';
+    $('poll').firstChild.textContent = /requests|schema/.test(error.message) ? SETUP_HINT : error.message;
     return;
   }
   state.rows = data || [];
@@ -271,99 +315,99 @@ async function load() {
   paint();
 }
 
-function paint() {
-  let rows = state.rows.slice();
-  if (state.view === 'top') rows = rows.filter((r) => r.status === 'open' || r.status === 'planned');
-  if (state.view === 'new') rows = rows.filter((r) => r.status === 'open').sort((a, b) => b.created_at.localeCompare(a.created_at));
-  if (state.view === 'planned') rows = rows.filter((r) => r.status === 'planned');
-  if (state.view === 'added') rows = rows.filter((r) => r.status === 'added');
-
-  const list = $('list');
-  list.innerHTML = '';
-  if (!rows.length) {
-    list.innerHTML = '<p class="empty"></p>';
-    list.firstChild.textContent = state.view === 'added' ? 'Nothing added from here yet.'
-      : state.view === 'planned' ? 'Nothing planned yet.' : 'No suggestions yet. Be the first.';
+async function pick(r) {
+  const msg = $('poll-msg');
+  msg.className = 'msg';
+  msg.textContent = '';
+  const { data: why, error } = await db.rpc('vote_for', { p_request: r.id });
+  if (error || why) {
+    msg.textContent = error ? (/vote_for/.test(error.message) ? SETUP_HINT : error.message) : why;
     return;
   }
+  await load();
+}
 
-  rows.forEach((r) => {
-    const item = document.createElement('div');
-    item.className = 'req' + (r.hidden ? ' is-hidden' : '');
+function paint() {
+  const open = state.rows.filter((r) => (r.status === 'open' || r.status === 'planned') && (!r.hidden || state.me.is_mod));
+  const total = open.reduce((n, r) => n + (r.hidden ? 0 : r.votes), 0);
 
-    const vote = document.createElement('button');
-    vote.type = 'button';
-    vote.className = 'vote' + (state.mine.has(r.id) ? ' on' : '');
-    vote.setAttribute('aria-pressed', String(state.mine.has(r.id)));
-    vote.setAttribute('aria-label', (state.mine.has(r.id) ? 'Remove your vote for ' : 'Vote for ') + r.title);
-    vote.innerHTML = '<svg viewBox="0 0 16 16"><path d="M4 10l4-4 4 4"/></svg><b></b>';
-    vote.querySelector('b').textContent = r.votes;
-    vote.disabled = r.status === 'added' || r.status === 'declined';
-    vote.onclick = async () => {
-      const { data: n, error } = await db.rpc('toggle_request_vote', { p_request: r.id });
-      if (error || n < 0) return;
-      if (state.mine.has(r.id)) state.mine.delete(r.id); else state.mine.add(r.id);
-      r.votes = n;
-      paint();
-    };
+  const poll = $('poll');
+  poll.innerHTML = '';
+  if (!open.length) {
+    poll.innerHTML = '<p class="empty"></p>';
+    poll.firstChild.textContent = state.me.is_mod
+      ? 'No options yet. Add some below, or run SCRIPTS/requests-poll.sql for the starter three.'
+      : 'No options to vote on yet. Check back soon.';
+  }
 
-    const body = document.createElement('div');
-    const title = document.createElement('div');
-    title.className = 'req-title';
-    title.textContent = r.title;
-    body.appendChild(title);
-    if (r.reason) {
-      const reason = document.createElement('p');
-      reason.className = 'req-reason';
-      reason.textContent = r.reason;
-      body.appendChild(reason);
-    }
+  open.forEach((r) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'opt-wrap';
+    const mine = state.mine.has(r.id);
+    const pct = total ? Math.round((r.votes / total) * 100) : 0;
 
-    const meta = document.createElement('div');
-    meta.className = 'meta';
-    const kind = document.createElement('span');
-    kind.className = 'chip';
-    kind.textContent = r.kind;
-    meta.appendChild(kind);
-    if (r.status !== 'open') {
-      const st = document.createElement('span');
-      st.className = 'chip ' + r.status;
-      st.textContent = r.status;
-      meta.appendChild(st);
-    }
-    const who = document.createElement('span');
-    who.textContent = 'by ' + (!r.user_id ? 'ChalkBored' : (r.profiles && r.profiles.username) || 'someone');
-    meta.appendChild(who);
-    if (r.hidden) {
-      const h = document.createElement('span');
-      h.textContent = 'hidden';
-      meta.appendChild(h);
-    }
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'opt' + (mine ? ' on' : '');
+    b.setAttribute('aria-pressed', String(mine));
+    b.innerHTML = '<span class="bar"></span><span class="radio" aria-hidden="true"></span>' +
+      '<span><span class="opt-title"></span><span class="opt-reason"></span><span class="opt-tags"></span></span>' +
+      '<span class="opt-count"><b></b><span></span></span>';
+    b.querySelector('.opt-title').textContent = r.title;
+    const reason = b.querySelector('.opt-reason');
+    if (r.reason) reason.textContent = r.reason; else reason.remove();
+    const tags = b.querySelector('.opt-tags');
+    const addTag = (text, cls) => { const t = document.createElement('span'); t.className = 'chip' + (cls ? ' ' + cls : ''); t.textContent = text; tags.appendChild(t); };
+    addTag(r.kind);
+    if (r.status === 'planned') addTag('planned', 'planned');
+    if (r.hidden) addTag('hidden');
+    if (mine) addTag('your pick', 'added');
+    b.querySelector('.opt-count b').textContent = pct + '%';
+    b.querySelector('.opt-count span').textContent = r.votes + (r.votes === 1 ? ' vote' : ' votes');
+    b.setAttribute('aria-label', r.title + ', ' + r.votes + ' votes' + (mine ? ', your pick. Click to take your vote back.' : '. Click to vote.'));
+    b.onclick = () => pick(r);
+    wrap.appendChild(b);
+    // grow the bar after it's on screen so it animates
+    requestAnimationFrame(() => { b.querySelector('.bar').style.width = pct + '%'; });
 
-    // site mods get controls
-    if (state.me.is_mod) {
-      const mod = document.createElement('span');
-      mod.className = 'mod';
-      const sel = document.createElement('select');
-      sel.setAttribute('aria-label', 'Status');
-      ['open', 'planned', 'added', 'declined'].forEach((s) => {
-        const o = document.createElement('option');
-        o.value = s; o.textContent = s; o.selected = s === r.status;
-        sel.appendChild(o);
-      });
-      sel.onchange = async () => { await db.rpc('set_request_status', { p_request: r.id, p_status: sel.value, p_hidden: null }); load(); };
-      const hide = document.createElement('button');
-      hide.type = 'button';
-      hide.textContent = r.hidden ? 'unhide' : 'hide';
-      hide.onclick = async () => { await db.rpc('set_request_status', { p_request: r.id, p_status: null, p_hidden: !r.hidden }); load(); };
-      mod.append(sel, hide);
-      meta.appendChild(mod);
-    }
-
-    body.appendChild(meta);
-    item.append(vote, body);
-    list.appendChild(item);
+    if (state.me.is_mod) wrap.appendChild(modRow(r));
+    poll.appendChild(wrap);
   });
+
+  $('poll-total').textContent = total + (total === 1 ? ' vote so far' : ' votes so far') +
+    (state.mine.size ? '' : ' · pick one to vote');
+  $('poll-foot').hidden = false;
+
+  const done = state.rows.filter((r) => r.status === 'added' && !r.hidden);
+  $('done-wrap').hidden = !done.length;
+  $('done').innerHTML = '';
+  done.forEach((r) => {
+    const c = document.createElement('span');
+    c.className = 'chip added';
+    c.textContent = r.title;
+    $('done').appendChild(c);
+  });
+}
+
+// site mods: set status, hide/unhide
+function modRow(r) {
+  const row = document.createElement('div');
+  row.className = 'mod-row';
+  row.append('mod: ');
+  const sel = document.createElement('select');
+  sel.setAttribute('aria-label', 'Status of ' + r.title);
+  ['open', 'planned', 'added', 'declined'].forEach((st) => {
+    const o = document.createElement('option');
+    o.value = st; o.textContent = st; o.selected = st === r.status;
+    sel.appendChild(o);
+  });
+  sel.onchange = async () => { await db.rpc('set_request_status', { p_request: r.id, p_status: sel.value, p_hidden: null }); load(); };
+  const hide = document.createElement('button');
+  hide.type = 'button';
+  hide.textContent = r.hidden ? 'unhide' : 'hide';
+  hide.onclick = async () => { await db.rpc('set_request_status', { p_request: r.id, p_status: null, p_hidden: !r.hidden }); load(); };
+  row.append(sel, hide);
+  return row;
 }
 
 // ---- go ----
@@ -372,7 +416,7 @@ async function start() {
   if (!user) {
     $('signin').hidden = false;
     $('suggest').hidden = true;
-    $('list').innerHTML = '<p class="empty">Sign in to see and vote on suggestions.</p>';
+    $('poll').innerHTML = '<p class="empty">Sign in to see the poll and vote.</p>';
     return;
   }
   const { data: me } = await db.from('profiles').select('id, username, is_mod, banned').eq('id', user.id).maybeSingle();
@@ -383,11 +427,11 @@ async function start() {
   }
   state.me = me;
   $('signin').hidden = true;
-  $('suggest').hidden = !!me.banned;
+  $('suggest').hidden = !me.is_mod;
   $('me-name').textContent = me.username;
   await load();
 
-  // new suggestions and vote counts show up live
+  // new options and vote counts show up live
   db.channel('requests')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'requests' }, () => load())
     .subscribe();
