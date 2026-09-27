@@ -429,6 +429,21 @@
   .card.soon .mono { color: var(--pencil); font-size: 1.1rem; transform: rotate(-2deg); }
   .card.soon:hover { transform: none; box-shadow: none; }
 
+  /* favorite star, sits on the card's corner */
+  .fav {
+    position: absolute; top: 0.4rem; right: 0.4rem; z-index: 2;
+    display: grid; place-items: center;
+    width: 30px; height: 30px; padding: 0;
+    background: var(--card); color: var(--pencil);
+    border: 1px solid var(--edge); border-radius: 50%;
+    font-size: 1rem; line-height: 1; cursor: pointer;
+    opacity: 0.75; transition: opacity 0.15s ease, transform 0.15s ease, color 0.15s ease;
+  }
+  .card-wrap:hover .fav, .fav:focus-visible { opacity: 1; }
+  .fav:hover { transform: scale(1.12); color: var(--accent); }
+  .fav.on { opacity: 1; color: var(--accent); border-color: var(--accent); }
+  .fav-note { margin: -0.4rem 0 1rem; font-size: 0.85rem; color: var(--pencil); }
+
   /* how-to-open menu */
   .open-menu {
     position: absolute;
@@ -774,6 +789,7 @@
 
         <section class="panel active" id="panel-games">
           <p class="lead"><b>Games.</b> Pick one, then choose how to open it.</p>
+          <p class="fav-note">Tap the ☆ on a game to favorite it. Favorites stay at the top.</p>
           <div class="cards" id="games"></div>
         </section>
 
@@ -945,6 +961,12 @@
         { name: 'Retro Bowl',      path: 'GAMES/rb-main/index.html' },
         { name: 'Escape Road',     path: 'GAMES/Learn-Car-Maintenance/index.html' },
         { name: 'Slope',           path: 'GAMES/Slope-main/Slope-main/index.html' },
+        { name: 'Pigeon Ascent',   path: 'GAMES/Pigeon/index.html' },
+        { name: 'Football Bros',   path: 'GAMES/football/index.html' },
+        { name: 'Moto X3M 2',      path: 'GAMES/moto/index.html' },
+        { name: 'Idle Breakout',   path: 'GAMES/idlebreak/index.html' },
+        { name: 'The Final Earth 2', path: 'GAMES/The-Final-Earth-2-main/The-Final-Earth-2-main/index.html' },
+        { name: 'Forgecraft',      path: 'GAMES/forgecraft.html' },
       ],
       tools: [
         { name: 'Chalk OS', path: 'TOOLS/CHALK-OS/index.html',
@@ -960,6 +982,7 @@
     const PANIC_STORE = 'vault-panic-key';
     const RECENTS_STORE = 'vault-recents';
     const SEEN_STORE = 'vault-seen-version';
+    const FAVS_STORE = 'vault-favorites';
     const VERSION = '0.7';
     const SETUP_VERSION = '0.6';   // bump this when everyone should see setup again
     const THEMES = ['notebook', 'chalkboard', 'terminal', 'night'];
@@ -1293,7 +1316,18 @@
       });
     }
 
-    function buildCards(gridId, items, appName, soonCard) {
+    // ---- favorites (saved by path, so renaming a game keeps it starred) ----
+    let favs = [];
+    try { favs = JSON.parse(localStorage.getItem(FAVS_STORE) || '[]'); } catch (e) {}
+    if (!Array.isArray(favs)) favs = [];
+    const isFav = (item) => favs.includes(item.path);
+    function toggleFav(item) {
+      favs = isFav(item) ? favs.filter((p) => p !== item.path) : [...favs, item.path];
+      try { localStorage.setItem(FAVS_STORE, JSON.stringify(favs)); } catch (e) {}
+      buildGames();
+    }
+
+    function buildCards(gridId, items, appName, soonCard, canFav) {
       const grid = $(gridId);
       grid.innerHTML = '';
 
@@ -1323,6 +1357,20 @@
         const menu = buildMenu(item, appName);
         wire(wrap, card, menu);
         wrap.append(card, menu);
+
+        if (canFav) {
+          const on = isFav(item);
+          const star = document.createElement('button');
+          star.type = 'button';
+          star.className = 'fav' + (on ? ' on' : '');
+          star.textContent = on ? '★' : '☆';
+          star.title = on ? 'Remove from favorites' : 'Add to favorites';
+          star.setAttribute('aria-label', (on ? 'Unfavorite ' : 'Favorite ') + item.name);
+          star.setAttribute('aria-pressed', String(on));
+          star.addEventListener('click', (e) => { e.stopPropagation(); toggleFav(item); });
+          wrap.appendChild(star);
+        }
+
         grid.appendChild(wrap);
       });
 
@@ -1337,7 +1385,12 @@
     }
 
     function buildGames() {
-      buildCards('games', LIST.games, 'Games', true);
+      // favorites first (in the order they were starred), then the rest as listed
+      const order = [
+        ...favs.map((p) => LIST.games.find((g) => g.path === p)).filter(Boolean),
+        ...LIST.games.filter((g) => !isFav(g)),
+      ];
+      buildCards('games', order, 'Games', true, true);
       $('tally-games').textContent = String(LIST.games.length);
     }
 
